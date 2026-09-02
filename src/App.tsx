@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { hooksInstalled, installHooks, onAgentEvent, removeHooks } from "./agent/events";
+import {
+  hooksInstalled,
+  installHooks,
+  note,
+  onAgentEvent,
+  removeHooks,
+} from "./agent/events";
 import { useFocusStore } from "./app/focusStore";
 import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
@@ -136,9 +142,16 @@ export default function App() {
   useEffect(() => {
     const unlisten = onAgentEvent((sessionId, state) => {
       const tabs = useTabsStore.getState();
+      const focus = useFocusStore.getState();
+      note(
+        `handled ${state} session=${sessionId.slice(0, 8)} active=${String(
+          tabs.activeId,
+        ).slice(0, 8)} pane=${focus.pane} pinned=${focus.pinned}`,
+      );
       tabs.setAgentState(sessionId, state);
       if (sessionId !== tabs.activeId) return;
       suggestPane(state === "waiting" ? "composer" : "terminal");
+      note(`pane now ${useFocusStore.getState().pane}`);
     });
     return () => void unlisten.then((stop) => stop());
   }, [suggestPane]);

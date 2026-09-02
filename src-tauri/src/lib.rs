@@ -34,6 +34,7 @@ pub fn run() {
             viewer::complete_path,
             viewer::complete_command,
             viewer::shell_commands,
+            agent::agent_log,
             agent::agent_hooks_installed,
             agent::agent_hooks_install,
             agent::agent_hooks_remove,
