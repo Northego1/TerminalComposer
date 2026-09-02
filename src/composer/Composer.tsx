@@ -1,8 +1,12 @@
+import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
 import { isEmptyMessage, type Message } from "../message/types";
+import type { Attachment } from "../message/types";
+import { attachmentsFromClipboard } from "./attachments/ingest";
+import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
 import { docToText, textToContent } from "./editor/documentText";
 import { EMPTY_HISTORY, next, previous, remember } from "./state/history";
@@ -60,12 +64,37 @@ export function Composer({
     interrupt: () => false,
   });
 
+  // Paste handling needs the editor from inside options built before it
+  // exists, so it goes through a ref.
+  const editorRef = useRef<Editor | null>(null);
+
+  const insertAttachments = (attachments: Attachment[]) => {
+    if (!attachments.length) return;
+    editorRef.current
+      ?.chain()
+      .focus()
+      .insertContent(attachments.map(attachmentNodeFor))
+      .run();
+  };
+
   const editor = useEditor({
     extensions: composerExtensions(() => handlers.current, PLACEHOLDER),
-    editorProps: { attributes: { class: "composer__editor" } },
+    editorProps: {
+      attributes: { class: "composer__editor" },
+      handlePaste: (_view, event) => {
+        if (!needsNativeClipboard(event)) return false;
+        // The webview cannot tell us where a pasted file lives, so the native
+        // side is asked instead. Consuming the event keeps the fallback (a
+        // path pasted as plain text) from landing as well.
+        void attachmentsFromClipboard().then(insertAttachments);
+        return true;
+      },
+    },
     onFocus: () => focusPane("composer"),
     onUpdate: () => rememberUndoable(null),
   });
+
+  editorRef.current = editor;
 
   handlers.current = {
     submit: () => {
@@ -172,4 +201,21 @@ export function Composer({
       </div>
     </div>
   );
+}
+
+/**
+ * Whether a paste carries something other than plain text.
+ *
+ * Plain text is left to ProseMirror, which pastes it correctly and quickly.
+ * Files and images have to go through Rust: a webview exposes their bytes at
+ * best, never their paths. A bare `file://` URI counts as a file too -- that is
+ * how a file manager's copy reaches us when the webview hides the file list.
+ */
+function needsNativeClipboard(event: ClipboardEvent): boolean {
+  const types = Array.from(event.clipboardData?.types ?? []);
+  const hasFiles =
+    types.includes("Files") || types.some((type) => type.startsWith("image/"));
+  if (hasFiles) return true;
+  if (!types.includes("text/plain")) return true;
+  return (event.clipboardData?.getData("text/plain") ?? "").startsWith("file://");
 }

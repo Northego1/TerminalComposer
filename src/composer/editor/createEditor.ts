@@ -4,6 +4,8 @@ import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
 import { Placeholder, UndoRedo } from "@tiptap/extensions";
 
+import { AttachmentNode } from "./AttachmentNode";
+
 import { onFirstLine, onLastLine } from "./documentText";
 
 /**
@@ -57,7 +59,7 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
  * A deliberately small editor: paragraphs, text, undo/redo, placeholder.
  *
  * This is an input field, not a document editor -- no headings, lists, marks or
- * code blocks. Slice 4 adds one more node type here, for attachments.
+ * code blocks. The one structural node is `attachment`.
  */
 export function composerExtensions(
   handlers: () => ComposerHandlers,
@@ -67,6 +69,7 @@ export function composerExtensions(
     Document,
     Paragraph,
     Text,
+    AttachmentNode,
     UndoRedo,
     Placeholder.configure({ placeholder }),
     ComposerKeymap.configure({ handlers }),

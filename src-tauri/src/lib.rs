@@ -4,10 +4,13 @@
 //! and native OS events. There is deliberately no UI or product logic here --
 //! that all lives in the TypeScript frontend (see `src/` in the repository root).
 
+mod clipboard;
 mod pty;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    clipboard::clear_scratch();
+
     tauri::Builder::default()
         .manage(pty::PtyRegistry::default())
         .invoke_handler(tauri::generate_handler![
@@ -15,6 +18,8 @@ pub fn run() {
             pty::pty_write,
             pty::pty_resize,
             pty::pty_close,
+            clipboard::clipboard_read_attachments,
+            clipboard::file_info,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

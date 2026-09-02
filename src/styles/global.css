@@ -210,3 +210,81 @@ body {
   opacity: 0.4;
   cursor: default;
 }
+
+/* ---- attachments ---- */
+
+.attachment {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin: 1px 2px;
+  padding: 2px 4px 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-panel);
+  vertical-align: middle;
+  line-height: 1;
+  cursor: default;
+  user-select: none;
+}
+
+.attachment--selected {
+  border-color: var(--accent);
+}
+
+.attachment__preview {
+  display: block;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--bg);
+}
+
+.attachment__icon {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+.attachment__name {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+}
+
+.attachment__size {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.attachment__remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attachment__remove:hover {
+  background: var(--border);
+  color: var(--text);
+}
