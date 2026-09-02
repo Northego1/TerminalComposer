@@ -49,8 +49,10 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
   // Panes. Ctrl+Shift rather than Ctrl+Alt, because GNOME takes Ctrl+Alt with
   // the arrows for switching workspaces and the app never sees it.
   if (ctrlKey && shiftKey && !altKey) {
-    if (code === "ArrowUp") return focus("terminal");
-    if (code === "ArrowDown") return focus("composer");
+    // Up opens the composer and down puts it away, matching the handle that
+    // points up from the collapsed strip.
+    if (code === "ArrowUp") return focus("composer");
+    if (code === "ArrowDown") return focus("terminal");
   }
 
   // Jump to a tab by position.
