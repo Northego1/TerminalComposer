@@ -23,6 +23,7 @@ import {
   saveComposerState,
 } from "./state/drafts";
 import {
+  continuationOf,
   EMPTY_HISTORY,
   next,
   previous,
@@ -115,8 +116,10 @@ export function Composer({
   const completionRef = useRef<ReturnType<typeof useCompletion> | null>(null);
 
   const editor = useEditor({
-    extensions: composerExtensions(() => handlers.current, () =>
-      translate("composer.placeholder"),
+    extensions: composerExtensions(
+      () => handlers.current,
+      () => translate("composer.placeholder"),
+      (typed) => continuationOf(history.current, typed),
     ),
     editorProps: {
       attributes: { class: "composer__editor" },

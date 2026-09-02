@@ -95,6 +95,23 @@ export function next(history: History): Recall | null {
  * reported by the shell that ran it -- one submission, two ways of hearing
  * about it.
  */
+/**
+ * The most recent entry that continues what is being typed.
+ *
+ * Newest first, because the thing you ran a minute ago is the thing you are
+ * most likely retyping.
+ */
+export function continuationOf(history: History, typed: string): string | null {
+  if (!typed) return null;
+  for (let index = history.entries.length - 1; index >= 0; index -= 1) {
+    const { text } = history.entries[index];
+    if (text.length > typed.length && text.startsWith(typed)) {
+      return text.slice(typed.length);
+    }
+  }
+  return null;
+}
+
 function isSameDraft(a: Draft | undefined, b: Draft): boolean {
   if (!a) return false;
   return a.text === b.text || JSON.stringify(a.doc) === JSON.stringify(b.doc);

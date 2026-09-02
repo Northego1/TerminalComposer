@@ -6,6 +6,7 @@ import Text from "@tiptap/extension-text";
 import { Placeholder, UndoRedo } from "@tiptap/extensions";
 
 import { AttachmentNode } from "./AttachmentNode";
+import { Autosuggest } from "./Autosuggest";
 
 import { onFirstLine, onLastLine } from "./documentText";
 
@@ -118,6 +119,8 @@ export function composerExtensions(
   handlers: () => ComposerHandlers,
   /** Read on every render, so it follows the interface language. */
   placeholder: () => string,
+  /** The remembered line that continues what is being typed, if any. */
+  suggest: (typed: string) => string | null = () => null,
 ) {
   return [
     Document,
@@ -125,6 +128,7 @@ export function composerExtensions(
     Text,
     AttachmentNode,
     UndoRedo,
+    Autosuggest.configure({ suggest }),
     Placeholder.configure({ placeholder }),
     ComposerKeymap.configure({ handlers }),
   ];

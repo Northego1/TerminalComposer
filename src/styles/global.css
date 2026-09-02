@@ -657,6 +657,12 @@ button.viewer-tabs__tab {
   line-height: 1.5;
 }
 
+/* What was typed stays black; what is only offered stays grey. */
+.composer__ghost {
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
 .composer__editor p {
   margin: 0;
 }
