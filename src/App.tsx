@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { onAgentEvent } from "./agent/events";
 import { useFocusStore } from "./app/focusStore";
 import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
@@ -65,6 +66,23 @@ export default function App() {
 
   // Anything that changes the tabs is worth remembering for next time.
   useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
+
+  /**
+   * What the agent in each terminal reports about itself.
+   *
+   * An agent that needs an answer says so through its own hooks, which is the
+   * only honest way to know: in the active tab the keyboard goes to it, and in
+   * a background tab the sidebar says which one is waiting.
+   */
+  useEffect(() => {
+    const unlisten = onAgentEvent((sessionId, state) => {
+      useTabsStore.getState().setAgentState(sessionId, state);
+      if (state === "attention" && sessionId === useTabsStore.getState().activeId) {
+        focusPane("terminal");
+      }
+    });
+    return () => void unlisten.then((stop) => stop());
+  }, [focusPane]);
 
   useEffect(() => {
     const instance = getInstance(activeId);

@@ -4,6 +4,7 @@
 //! and native OS events. There is deliberately no UI or product logic here --
 //! that all lives in the TypeScript frontend (see `src/` in the repository root).
 
+mod agent;
 mod clipboard;
 mod pty;
 mod shell;
@@ -27,7 +28,16 @@ pub fn run() {
             clipboard::file_info,
             state::state_read,
             state::state_write,
+            agent::agent_hooks_installed,
+            agent::agent_hooks_install,
+            agent::agent_hooks_remove,
         ])
+        .setup(|app| {
+            // One reader for the whole app; sessions are told apart by the id
+            // each hook reports.
+            agent::listen(app.handle().clone());
+            Ok(())
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app, event| {

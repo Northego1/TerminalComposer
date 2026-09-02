@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { hooksInstalled, installHooks, removeHooks } from "../agent/events";
 
 import { useSettingsStore, type Settings } from "../app/settingsStore";
 import { LANGUAGE_NAMES, LANGUAGES, useT, type StringKey } from "../i18n";
@@ -124,6 +126,8 @@ export function SettingsView() {
               />
             </div>
 
+            <AgentHooksRow />
+
             <label className="settings__row">
               <span>{t("settings.shellIntegration")}</span>
               <input
@@ -177,5 +181,48 @@ export function SettingsView() {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * Installing the agent's hooks edits a file belonging to another program, so it
+ * only ever happens on a click and says exactly what it does.
+ */
+function AgentHooksRow() {
+  const t = useT();
+  const [installed, setInstalled] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void hooksInstalled().then(setInstalled);
+  }, []);
+
+  const toggle = async () => {
+    setError(null);
+    try {
+      if (installed) await removeHooks();
+      else await installHooks();
+      setInstalled(await hooksInstalled());
+    } catch (cause) {
+      setError(String(cause));
+    }
+  };
+
+  return (
+    <>
+      <div className="settings__row">
+        <span>
+          {t("settings.agentHooks")}
+          {installed && (
+            <span className="settings__state"> · {t("settings.agentHooks.installed")}</span>
+          )}
+        </span>
+        <button type="button" className="settings__action" onClick={() => void toggle()}>
+          {t(installed ? "settings.agentHooks.remove" : "settings.agentHooks.install")}
+        </button>
+      </div>
+      <p className="settings__note">{t("settings.agentHooks.note")}</p>
+      {error && <p className="settings__note settings__note--error">{error}</p>}
+    </>
   );
 }

@@ -34,6 +34,7 @@ impl PtySession {
             .openpty(pty_size(options.cols, options.rows))
             .map_err(|e| format!("failed to open pty: {e}"))?;
 
+        let id = uuid::Uuid::new_v4().to_string();
         let mut cmd = CommandBuilder::new(&shell);
         cmd.cwd(&cwd);
         cmd.env("TERM", "xterm-256color");
@@ -50,6 +51,11 @@ impl PtySession {
                 cmd.env("ZDOTDIR", zdotdir);
             }
         }
+
+        // Everything the shell starts inherits these, which is how an agent's
+        // hook finds its way back to the right tab.
+        cmd.env("TERMINAL_COMPOSER_SESSION", &id);
+        cmd.env("TERMINAL_COMPOSER_EVENTS", crate::agent::events_pipe());
 
         let child = pair
             .slave
@@ -68,7 +74,6 @@ impl PtySession {
             .take_writer()
             .map_err(|e| format!("failed to write to pty: {e}"))?;
 
-        let id = uuid::Uuid::new_v4().to_string();
         let pid = child.process_id();
         pump::start(app, id.clone(), reader);
 

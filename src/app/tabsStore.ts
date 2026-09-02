@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import type { AgentState } from "../agent/events";
 import { t } from "../i18n";
 import { TerminalInstance } from "../terminal/TerminalInstance";
 import { useSettingsStore } from "./settingsStore";
@@ -47,6 +48,9 @@ interface TabsState {
   tabs: Tab[];
   activeId: string | null;
   error: string | null;
+  /** What the agent in each terminal is doing, when one reports it. */
+  agents: Record<string, AgentState>;
+  setAgentState: (sessionId: string, state: AgentState) => void;
   openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
   openSettings: (name?: string) => void;
   restore: (
@@ -64,6 +68,10 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   tabs: [],
   activeId: null,
   error: null,
+  agents: {},
+
+  setAgentState: (sessionId, state) =>
+    set((current) => ({ agents: { ...current.agents, [sessionId]: state } })),
 
   openTerminal: async (spawn = {}) => {
     const settings = useSettingsStore.getState().settings;
@@ -135,7 +143,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         state.activeId === id
           ? (tabs[Math.min(index, tabs.length - 1)]?.id ?? null)
           : state.activeId;
-      return { tabs, activeId };
+      const { [id]: _closed, ...agents } = state.agents;
+      return { tabs, activeId, agents };
     });
 
     await instance?.dispose();
@@ -143,7 +152,14 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (get().tabs.length === 0) await get().openTerminal();
   },
 
-  activate: (id) => set({ activeId: id }),
+  activate: (id) =>
+    set((state) => ({
+      activeId: id,
+      agents:
+        state.agents[id] === "attention"
+          ? { ...state.agents, [id]: "waiting" }
+          : state.agents,
+    })),
 
   rename: (id, name) =>
     set((state) => ({
