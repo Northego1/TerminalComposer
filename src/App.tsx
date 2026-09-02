@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { onAgentEvent } from "./agent/events";
+import { hooksInstalled, installHooks, onAgentEvent, removeHooks } from "./agent/events";
 import { useFocusStore } from "./app/focusStore";
 import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
@@ -63,6 +63,11 @@ export default function App() {
     applySettingsToDocument(settings);
     forEachInstance((instance) => instance.applySettings(settings));
   }, [settings]);
+
+  // The agent's hooks follow the setting, in both directions.
+  useEffect(() => {
+    void syncAgentHooks(settings.agentHooks);
+  }, [settings.agentHooks]);
 
   // Anything that changes the tabs is worth remembering for next time.
   useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
@@ -234,6 +239,19 @@ export default function App() {
       </div>
     </div>
   );
+}
+
+/**
+ * Brings Claude Code's settings in line with ours, and only when they differ --
+ * it is another program's file, so it is not rewritten for nothing.
+ */
+async function syncAgentHooks(wanted: boolean): Promise<void> {
+  const installed = await hooksInstalled();
+  if (installed === wanted) return;
+  await (wanted ? installHooks() : removeHooks()).catch(() => {
+    // Claude Code may not be installed, or its settings may be unreadable.
+    // Neither is a reason to get in the way.
+  });
 }
 
 /**

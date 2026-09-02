@@ -13,7 +13,7 @@ use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
 pub const EVENT: &str = "agent://event";
 
@@ -35,10 +35,14 @@ pub fn events_pipe() -> PathBuf {
 }
 
 /// The script hooks are pointed at.
-pub fn hook_script() -> Option<PathBuf> {
-    let path = events_pipe().with_file_name("report-event.sh");
-    let parent = path.parent()?;
-    std::fs::create_dir_all(parent).ok()?;
+///
+/// It lives with the application's configuration rather than in the runtime
+/// directory: the entry in Claude Code's settings survives a reboot, and a
+/// script that did not would leave it running a file that no longer exists.
+pub fn hook_script(app: &AppHandle) -> Option<PathBuf> {
+    let directory = app.path().app_config_dir().ok()?;
+    std::fs::create_dir_all(&directory).ok()?;
+    let path = directory.join("report-event.sh");
     std::fs::write(&path, include_str!("../shell/agent/report-event.sh")).ok()?;
     set_executable(&path)?;
     Some(path)
@@ -46,6 +50,9 @@ pub fn hook_script() -> Option<PathBuf> {
 
 /// Creates the pipe and starts reading it. One reader for the whole app.
 pub fn listen(app: AppHandle) {
+    // Kept current, so a script written by an older version is replaced.
+    let _ = hook_script(&app);
+
     let Some(path) = create_pipe() else {
         return;
     };
@@ -126,9 +133,9 @@ pub fn agent_hooks_installed() -> bool {
 /// This edits a file that belongs to another program, so it happens only when
 /// the user asks for it, and never silently.
 #[tauri::command]
-pub fn agent_hooks_install() -> Result<(), String> {
+pub fn agent_hooks_install(app: AppHandle) -> Result<(), String> {
     let path = settings_path().ok_or("no home directory")?;
-    let script = hook_script().ok_or("could not write the hook script")?;
+    let script = hook_script(&app).ok_or("could not write the hook script")?;
     let script = script.to_string_lossy().into_owned();
 
     let existing = std::fs::read_to_string(&path).unwrap_or_else(|_| "{}".to_string());

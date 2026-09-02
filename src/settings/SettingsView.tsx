@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { hooksInstalled, installHooks, removeHooks } from "../agent/events";
+import { hooksInstalled } from "../agent/events";
 
 import { useSettingsStore, type Settings } from "../app/settingsStore";
 import { LANGUAGE_NAMES, LANGUAGES, useT, type StringKey } from "../i18n";
@@ -185,44 +185,39 @@ export function SettingsView() {
 }
 
 /**
- * Installing the agent's hooks edits a file belonging to another program, so it
- * only ever happens on a click and says exactly what it does.
+ * The hooks are on by default, so this is a switch rather than a button -- but
+ * it still says plainly that another program's file is being edited.
  */
 function AgentHooksRow() {
   const t = useT();
+  const enabled = useSettingsStore((state) => state.settings.agentHooks);
+  const update = useSettingsStore((state) => state.update);
   const [installed, setInstalled] = useState<boolean | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void hooksInstalled().then(setInstalled);
-  }, []);
-
-  const toggle = async () => {
-    setError(null);
-    try {
-      if (installed) await removeHooks();
-      else await installHooks();
-      setInstalled(await hooksInstalled());
-    } catch (cause) {
-      setError(String(cause));
-    }
-  };
+  }, [enabled]);
 
   return (
     <>
-      <div className="settings__row">
+      <label className="settings__row">
         <span>
           {t("settings.agentHooks")}
-          {installed && (
-            <span className="settings__state"> · {t("settings.agentHooks.installed")}</span>
+          {installed !== null && (
+            <span className="settings__state">
+              {" · "}
+              {t(installed ? "settings.agentHooks.installed" : "settings.agentHooks.absent")}
+            </span>
           )}
         </span>
-        <button type="button" className="settings__action" onClick={() => void toggle()}>
-          {t(installed ? "settings.agentHooks.remove" : "settings.agentHooks.install")}
-        </button>
-      </div>
+        <input
+          type="checkbox"
+          className="settings__toggle"
+          checked={enabled}
+          onChange={(event) => update({ agentHooks: event.target.checked })}
+        />
+      </label>
       <p className="settings__note">{t("settings.agentHooks.note")}</p>
-      {error && <p className="settings__note settings__note--error">{error}</p>}
     </>
   );
 }

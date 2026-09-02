@@ -50,9 +50,8 @@ export const EN = {
   "settings.agentHooks": "Claude Code events",
   "settings.agentHooks.note":
     "Adds hooks to ~/.claude/settings.json so the agent can say when it is working, when it has answered and when it needs you. A backup of the file is kept. Nothing else in it is touched.",
-  "settings.agentHooks.install": "Install",
-  "settings.agentHooks.remove": "Remove",
   "settings.agentHooks.installed": "installed",
+  "settings.agentHooks.absent": "not installed",
   "settings.shellIntegration": "Shell integration",
   "settings.shellIntegration.note":
     "Lets the shell say whether it is waiting for a command or running one, which is what decides where the keyboard goes. Only zsh for now; your ~/.zshrc is not modified.",
@@ -117,9 +116,8 @@ export const RU: Record<StringKey, string> = {
   "settings.agentHooks": "События Claude Code",
   "settings.agentHooks.note":
     "Добавляет хуки в ~/.claude/settings.json, чтобы агент сообщал, когда работает, когда ответил и когда ждёт вас. Копия файла сохраняется. Ничего другого в нём не меняется.",
-  "settings.agentHooks.install": "Установить",
-  "settings.agentHooks.remove": "Убрать",
   "settings.agentHooks.installed": "установлены",
+  "settings.agentHooks.absent": "не установлены",
   "settings.shellIntegration": "Интеграция с shell",
   "settings.shellIntegration.note":
     "Позволяет шеллу сообщать, ждёт он команду или выполняет её — от этого зависит, кому достаётся клавиатура. Пока только zsh; ваш ~/.zshrc не меняется.",

@@ -24,6 +24,13 @@ export interface Settings {
    * guessed -- the composer is simply opened by hand.
    */
   shellIntegration: boolean;
+  /**
+   * Let Claude Code report its own lifecycle.
+   *
+   * On by default: without it a tab cannot say that the agent in it is waiting,
+   * and there is no other way to know. Turning it off removes the hooks again.
+   */
+  agentHooks: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -37,6 +44,7 @@ export const DEFAULT_SETTINGS: Settings = {
   shell: "",
   cwd: "",
   shellIntegration: true,
+  agentHooks: true,
 };
 
 interface SettingsState {
