@@ -587,6 +587,23 @@ body {
   font-size: 11px;
 }
 
+/*
+ * The full picture, held above the chip while the pointer is on it. Fixed and
+ * outside the editor, so the editor's own scrolling cannot clip it.
+ */
+.attachment-preview {
+  position: fixed;
+  z-index: 60;
+  max-width: 320px;
+  max-height: 260px;
+  transform: translateY(-100%);
+  border: 1px solid var(--border-active);
+  border-radius: 10px;
+  background: var(--bg-panel);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+  pointer-events: none;
+}
+
 .attachment__remove {
   display: flex;
   align-items: center;

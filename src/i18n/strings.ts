@@ -24,6 +24,7 @@ export const EN = {
   "composer.send": "Enter →",
   "composer.expand": "Open composer",
 
+  "attachment.image": "Image {n}",
   "attachment.remove": "Remove attachment",
 
   "search.placeholder": "Search the terminal",
@@ -83,6 +84,7 @@ export const RU: Record<StringKey, string> = {
   "composer.send": "Enter →",
   "composer.expand": "Открыть composer",
 
+  "attachment.image": "Изображение {n}",
   "attachment.remove": "Удалить вложение",
 
   "search.placeholder": "Поиск по терминалу",
