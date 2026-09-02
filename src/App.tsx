@@ -73,18 +73,26 @@ export default function App() {
   useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
 
   /**
-   * What the agent in each terminal reports about itself.
+   * What the agent in each terminal reports about itself, and where that puts
+   * the keyboard.
    *
-   * An agent that needs an answer says so through its own hooks, which is the
-   * only honest way to know: in the active tab the keyboard goes to it, and in
-   * a background tab the sidebar says which one is waiting.
+   * This closes the loop the shell alone cannot: to a shell an agent is one
+   * command that runs for hours, but the agent itself knows when it took the
+   * turn and when it gave it back.
+   *
+   *   started working -> the terminal, where the work is shown;
+   *   answered        -> the composer, to write the next message;
+   *   needs an answer -> the terminal, to give it.
+   *
+   * Only for the tab being looked at. A background tab says so in the sidebar
+   * instead of taking the keyboard away from another one.
    */
   useEffect(() => {
     const unlisten = onAgentEvent((sessionId, state) => {
-      useTabsStore.getState().setAgentState(sessionId, state);
-      if (state === "attention" && sessionId === useTabsStore.getState().activeId) {
-        focusPane("terminal");
-      }
+      const tabs = useTabsStore.getState();
+      tabs.setAgentState(sessionId, state);
+      if (sessionId !== tabs.activeId) return;
+      focusPane(state === "waiting" ? "composer" : "terminal");
     });
     return () => void unlisten.then((stop) => stop());
   }, [focusPane]);
