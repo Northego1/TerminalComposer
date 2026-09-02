@@ -16,6 +16,7 @@ import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
 import { FileViewer } from "./viewer/FileViewer";
+import { ViewerTabs } from "./viewer/ViewerTabs";
 
 /**
  * How much of the composer stays visible while the terminal is active: just the
@@ -86,8 +87,9 @@ export default function App() {
   const viewers = useTabsStore((state) => state.viewers);
   const showFile = useTabsStore((state) => state.showFile);
   const closeFile = useTabsStore((state) => state.closeFile);
-  /** The files the active tab has open beside it, if any. */
+  /** The files the active terminal has open, and which of them is on screen. */
   const viewing = activeId ? viewers[activeId] : undefined;
+  const viewingFile = viewing?.active ?? null;
 
   useEffect(() => {
     const instance = getInstance(activeId);
@@ -149,6 +151,15 @@ export default function App() {
           )}
         </header>
 
+        {onTerminal && viewing && viewing.paths.length > 0 && activeId && (
+          <ViewerTabs
+            terminalName={active?.name ?? ""}
+            files={viewing}
+            onShow={(path) => showFile(activeId, path)}
+            onClose={(path) => closeFile(activeId, path)}
+          />
+        )}
+
         <main className="app__body">
           {searching && onTerminal && (
             <TerminalSearch
@@ -166,7 +177,9 @@ export default function App() {
 
           {/* The terminals and the settings pages share this column; the
               viewer, when there is one, takes the other. */}
-          <div className="app__terminals">
+          <div
+            className={`app__terminals${viewingFile ? " app__terminals--hidden" : ""}`}
+          >
             {/* Every tab stays mounted; only the active one is shown. */}
             {tabs.map((tab) => {
             const isActive = tab.id === activeId;
@@ -189,16 +202,10 @@ export default function App() {
             })}
           </div>
 
-          {viewing && activeId && onTerminal && (
-            <FileViewer
-              files={viewing}
-              onShow={(path) => showFile(activeId, path)}
-              onClose={(path) => closeFile(activeId, path)}
-            />
-          )}
+          {viewingFile && onTerminal && <FileViewer path={viewingFile} />}
         </main>
 
-        {collapsed && onTerminal && (
+        {collapsed && onTerminal && !viewingFile && (
           <button
             type="button"
             className="composer-peek"
@@ -214,7 +221,7 @@ export default function App() {
         <footer
           className={[
             "app__composer",
-            onTerminal ? "" : "app__composer--hidden",
+            onTerminal && !viewingFile ? "" : "app__composer--hidden",
             collapsed ? "app__composer--peek" : "",
             animate ? "app__composer--animate" : "",
           ]

@@ -2,7 +2,6 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import MarkdownIt from "markdown-it";
 import { useEffect, useState } from "react";
 
-import type { ViewerFiles } from "../app/tabsStore";
 import { useT } from "../i18n";
 import { readFile, type FileContents } from "./fileClient";
 
@@ -14,56 +13,16 @@ const markdown = new MarkdownIt({ html: false, linkify: true, typographer: false
 
 const MARKDOWN = /\.(md|markdown)$/i;
 
-interface FileViewerProps {
-  files: ViewerFiles;
-  onShow: (path: string) => void;
-  onClose: (path: string) => void;
-}
-
-/** The files opened beside a terminal, each on its own tab. */
-export function FileViewer({ files, onShow, onClose }: FileViewerProps) {
-  const t = useT();
-
-  return (
-    <section className="viewer">
-      <nav className="viewer__tabs">
-        {files.paths.map((path) => (
-          <div
-            key={path}
-            className={`viewer__tab${path === files.active ? " viewer__tab--active" : ""}`}
-            onAuxClick={(event) => {
-              if (event.button !== 1) return;
-              event.preventDefault();
-              onClose(path);
-            }}
-          >
-            <button type="button" onClick={() => onShow(path)} title={path}>
-              {basename(path)}
-            </button>
-            <button
-              type="button"
-              className="viewer__close"
-              onClick={() => onClose(path)}
-              title={t("viewer.close")}
-            >
-              ×
-            </button>
-          </div>
-        ))}
-      </nav>
-
-      <FileContentsView key={files.active} path={files.active} />
-    </section>
-  );
-}
-
-function FileContentsView({ path }: { path: string }) {
+/** One file, read-only, filling the space the terminal would have. */
+export function FileViewer({ path }: { path: string }) {
   const t = useT();
   const [file, setFile] = useState<FileContents | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
+    setFile(null);
+    setError(null);
     readFile(path)
       .then((contents) => !cancelled && setFile(contents))
       .catch((cause: unknown) => !cancelled && setError(String(cause)));
@@ -73,7 +32,7 @@ function FileContentsView({ path }: { path: string }) {
   }, [path]);
 
   return (
-    <div className="viewer__body">
+    <div className="viewer">
       {error && <p className="viewer__note viewer__note--error">{error}</p>}
       {file?.kind === "image" && (
         <img className="viewer__image" src={convertFileSrc(file.path)} alt={file.name} />
@@ -91,8 +50,4 @@ function FileContentsView({ path }: { path: string }) {
       {file?.truncated && <p className="viewer__note">{t("viewer.truncated")}</p>}
     </div>
   );
-}
-
-function basename(path: string): string {
-  return path.slice(path.lastIndexOf("/") + 1) || path;
 }

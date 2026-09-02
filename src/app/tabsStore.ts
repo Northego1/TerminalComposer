@@ -25,10 +25,15 @@ export interface SettingsTab {
 
 export type Tab = TerminalTab | SettingsTab;
 
-/** Files opened beside one terminal. Several at a time, like tabs anywhere. */
+/**
+ * Files opened from one terminal.
+ *
+ * They share the row of tabs above the terminal, and `active` says which of
+ * them is on screen -- `null` means the terminal itself is.
+ */
 export interface ViewerFiles {
   paths: string[];
-  active: string;
+  active: string | null;
 }
 
 /**
@@ -56,7 +61,7 @@ interface TabsState {
   /** The files each terminal tab has open beside it, and which is shown. */
   viewers: Record<string, ViewerFiles>;
   openFile: (path: string) => void;
-  showFile: (tabId: string, path: string) => void;
+  showFile: (tabId: string, path: string | null) => void;
   closeFile: (tabId: string, path: string) => void;
   openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
   openSettings: (name?: string) => void;
@@ -77,7 +82,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   error: null,
   viewers: {},
 
-  /** Opens a file next to the terminal that named it, or brings it forward. */
+  /** Opens a file in a tab above the terminal that named it, and shows it. */
   openFile: (path) =>
     set((state) => {
       const tabId = state.activeId;
@@ -103,9 +108,13 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         const { [tabId]: _empty, ...viewers } = state.viewers;
         return { viewers };
       }
+      // Closing what you were looking at falls back to the neighbour, and to
+      // the terminal when that was the last file.
       const index = open.paths.indexOf(path);
       const active =
-        open.active === path ? (paths[Math.min(index, paths.length - 1)] ?? paths[0]) : open.active;
+        open.active === path
+          ? (paths[Math.min(index, paths.length - 1)] ?? null)
+          : open.active;
       return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
     }),
 
@@ -130,7 +139,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         error: null,
   viewers: {},
 
-  /** Opens a file next to the terminal that named it, or brings it forward. */
+  /** Opens a file in a tab above the terminal that named it, and shows it. */
   openFile: (path) =>
     set((state) => {
       const tabId = state.activeId;
@@ -156,9 +165,13 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         const { [tabId]: _empty, ...viewers } = state.viewers;
         return { viewers };
       }
+      // Closing what you were looking at falls back to the neighbour, and to
+      // the terminal when that was the last file.
       const index = open.paths.indexOf(path);
       const active =
-        open.active === path ? (paths[Math.min(index, paths.length - 1)] ?? paths[0]) : open.active;
+        open.active === path
+          ? (paths[Math.min(index, paths.length - 1)] ?? null)
+          : open.active;
       return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
     }),
       }));

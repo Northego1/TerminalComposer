@@ -255,49 +255,60 @@ body {
   min-width: 0;
 }
 
-/* ---- file viewer ---- */
-
-.viewer {
-  display: flex;
-  flex-direction: column;
-  width: 44%;
-  min-width: 280px;
-  flex: none;
-  border-left: 1px solid var(--border);
-  background: var(--bg-panel);
+.app__terminals--hidden {
+  display: none;
 }
 
-.viewer__tabs {
+/* ---- file viewer ---- */
+
+/* The row under the header: the terminal, and the files opened from it. */
+.viewer-tabs {
   display: flex;
   flex: none;
   gap: 2px;
-  padding: 5px 6px 0;
+  padding: 5px 8px 0;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-panel);
   overflow-x: auto;
 }
 
-.viewer__tab {
+.viewer-tabs__tab {
   display: flex;
   align-items: center;
   flex: none;
-  max-width: 200px;
+  max-width: 220px;
+  border: none;
   border-radius: 8px 8px 0 0;
+  background: transparent;
   color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
 }
 
-.viewer__tab:hover {
+button.viewer-tabs__tab {
+  gap: 6px;
+  padding: 7px 12px;
+}
+
+.viewer-tabs__tab:hover {
   background: var(--bg-elevated);
 }
 
-.viewer__tab--active {
+.viewer-tabs__tab--active {
   background: var(--bg-elevated);
   color: var(--text);
 }
 
-.viewer__tab > button:first-child {
+.viewer-tabs__icon {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.viewer-tabs__tab > button:first-child {
   flex: 1;
   min-width: 0;
-  padding: 6px 4px 6px 10px;
+  padding: 7px 4px 7px 12px;
   border: none;
   background: transparent;
   color: inherit;
@@ -309,11 +320,11 @@ body {
   cursor: pointer;
 }
 
-.viewer__close {
+.viewer-tabs__close {
   flex: none;
   width: 18px;
   height: 18px;
-  margin-right: 5px;
+  margin-right: 7px;
   padding: 0;
   border: none;
   border-radius: 5px;
@@ -325,16 +336,16 @@ body {
   cursor: pointer;
 }
 
-.viewer__close:hover {
+.viewer-tabs__close:hover {
   background: var(--border);
   color: var(--text);
 }
 
-.viewer__body {
+.viewer {
   flex: 1;
-  min-height: 0;
+  min-width: 0;
   overflow: auto;
-  padding: 12px 14px;
+  padding: 14px 18px;
 }
 
 .viewer__text {
