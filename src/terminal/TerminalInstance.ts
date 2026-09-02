@@ -37,6 +37,7 @@ export class TerminalInstance {
   private lastSize = { cols: 0, rows: 0 };
   private shell: ShellState = "unknown";
   private readonly shellStateHandlers = new Set<(state: ShellState) => void>();
+  private readonly commandHandlers = new Set<(command: string) => void>();
 
   private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
@@ -291,6 +292,14 @@ export class TerminalInstance {
     };
   }
 
+  /** Every command the shell runs, however it was typed. */
+  onCommand(handler: (command: string) => void): () => void {
+    this.commandHandlers.add(handler);
+    return () => {
+      this.commandHandlers.delete(handler);
+    };
+  }
+
   /**
    * Listens for the shell's own account of itself (OSC 133).
    *
@@ -301,6 +310,13 @@ export class TerminalInstance {
   private watchShellState(): void {
     this.term.parser.registerOscHandler(133, (data) => {
       const next: ShellState = data.startsWith("C") ? "running" : "prompt";
+
+      // `C` carries the command with it, when there is one to carry.
+      const command = next === "running" ? data.slice(2).trim() : "";
+      if (command) {
+        for (const handler of this.commandHandlers) handler(command);
+      }
+
       if (next !== this.shell) {
         this.shell = next;
         for (const handler of this.shellStateHandlers) handler(next);

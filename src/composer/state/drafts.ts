@@ -1,6 +1,12 @@
 import type { JSONContent } from "@tiptap/core";
 
-import { EMPTY_DRAFT, EMPTY_HISTORY, type History } from "./history";
+import {
+  EMPTY_DRAFT,
+  EMPTY_HISTORY,
+  remember,
+  type Draft,
+  type History,
+} from "./history";
 
 /**
  * Per-session composer state.
@@ -32,6 +38,30 @@ export function saveComposerState(
   state: ComposerState,
 ): void {
   if (sessionId) states.set(sessionId, state);
+}
+
+/**
+ * Records a command the shell ran, so it can be recalled like anything else.
+ *
+ * Reached here from the shell itself, which reports every command it runs --
+ * including the ones typed straight into the terminal, which the composer would
+ * otherwise never see.
+ */
+export function rememberCommand(sessionId: string, text: string): ComposerState {
+  const state = loadComposerState(sessionId);
+  const next = { ...state, history: remember(state.history, draftOf(text)) };
+  states.set(sessionId, next);
+  return next;
+}
+
+function draftOf(text: string): Draft {
+  return {
+    doc: {
+      type: "doc",
+      content: [{ type: "paragraph", content: [{ type: "text", text }] }],
+    },
+    text,
+  };
 }
 
 /** Drops the state of sessions that no longer exist. */

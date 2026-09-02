@@ -3,7 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
-import { useTabsStore } from "../app/tabsStore";
+import { getInstance, useTabsStore } from "../app/tabsStore";
 import { scheduleWorkspaceSave } from "../app/workspace";
 import { t as translate, useT } from "../i18n";
 import { isEmptyMessage, type Message } from "../message/types";
@@ -19,6 +19,7 @@ import { docToText, needsFullComposer } from "./editor/documentText";
 import {
   loadComposerState,
   pruneComposerStates,
+  rememberCommand,
   saveComposerState,
 } from "./state/drafts";
 import {
@@ -285,6 +286,20 @@ export function Composer({
   useEffect(() => {
     pruneComposerStates(tabs.map((tab) => tab.id));
   }, [tabs]);
+
+  /**
+   * Commands run in the terminal join the history too.
+   *
+   * Recalling only what the composer sent would leave out half of what was
+   * typed -- the shell reports everything it runs, so the two are one list.
+   */
+  useEffect(() => {
+    if (!activeId) return;
+    return getInstance(activeId)?.onCommand((command) => {
+      history.current = rememberCommand(activeId, command).history;
+      scheduleWorkspaceSave();
+    });
+  }, [activeId]);
 
   useEffect(() => {
     if (!editor) return;

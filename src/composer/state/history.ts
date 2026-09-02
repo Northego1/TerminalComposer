@@ -88,6 +88,14 @@ export function next(history: History): Recall | null {
   };
 }
 
+/**
+ * The same thing twice in a row is worth one entry.
+ *
+ * Text as well as document, because a command sent from the composer is also
+ * reported by the shell that ran it -- one submission, two ways of hearing
+ * about it.
+ */
 function isSameDraft(a: Draft | undefined, b: Draft): boolean {
-  return a !== undefined && JSON.stringify(a.doc) === JSON.stringify(b.doc);
+  if (!a) return false;
+  return a.text === b.text || JSON.stringify(a.doc) === JSON.stringify(b.doc);
 }

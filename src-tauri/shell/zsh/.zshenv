@@ -35,7 +35,12 @@ if [[ -o interactive ]] && [[ -z "$TERMINAL_COMPOSER_MARKS" ]]; then
   }
 
   _terminal_composer_preexec() {
-    _terminal_composer_mark "C"              # a command started running
+    # The command comes along with the mark, so the composer's history holds
+    # what was typed straight into the terminal as well as what it sent itself.
+    # Newlines are folded and the text is capped: this is a history entry, not
+    # a transcript, and the mark has to stay one line.
+    local command=${1//$'\n'/ }
+    _terminal_composer_mark "C;${command[1,500]}"
   }
 
   # What this shell can run: its aliases, its functions and everything on
