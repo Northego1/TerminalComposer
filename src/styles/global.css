@@ -94,12 +94,40 @@ body {
   transition: height 160ms ease;
 }
 
+/*
+ * Keeps its full height even while the wrapper is collapsed, so the composer
+ * peeks out from under the window edge instead of being squashed.
+ */
 .app__composer-inner {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 0 12px 12px;
+}
+
+.composer-resizer {
+  flex: none;
+  height: 10px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.composer-resizer::before {
+  content: "";
+  width: 40px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--border);
+  transition: background 120ms ease;
+}
+
+.composer-resizer:hover::before {
+  background: var(--border-active);
 }
 
 .app__composer--peek {
@@ -120,6 +148,8 @@ body {
 
 .composer {
   display: flex;
+  flex: 1;
+  min-height: 0;
   flex-direction: column;
   gap: 6px;
   padding: 10px 12px 8px;
@@ -133,25 +163,38 @@ body {
   border-color: var(--border-active);
 }
 
-.composer__input {
-  width: 100%;
-  min-height: 72px;
-  max-height: 240px;
-  resize: vertical;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 14px;
-  line-height: 1.5;
+.composer__surface {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.composer__input::placeholder {
+.composer__editor {
+  outline: none;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 100%;
+}
+
+.composer__editor p {
+  margin: 0;
+}
+
+/* Placeholder, shown on the first paragraph while the editor is empty. */
+.composer__editor p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
   color: var(--text-dim);
 }
 
+.composer__editor ::selection {
+  background: #2f3a4d;
+}
+
 .composer__footer {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: space-between;

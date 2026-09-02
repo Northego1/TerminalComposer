@@ -68,6 +68,9 @@ npm run tauri dev
 | `Esc` сразу после отправки | вернуть текст в composer и прервать target |
 | `Esc` | свернуть composer, уйти в терминал |
 | `Ctrl+Alt+↑` / `Ctrl+Alt+↓` | переключение фокуса терминал / composer |
+| `Ctrl+Z` / `Ctrl+Shift+Z` | undo / redo в composer |
+
+Высота composer меняется перетаскиванием полоски на его верхней границе.
 
 Режим ввода всегда один: активна либо консоль, либо composer. Когда активна
 консоль, composer уезжает вниз и остаётся выглядывать полоской — клик по ней
@@ -85,7 +88,14 @@ src/                        frontend: весь UI и UX
 │   ├── TerminalInstance.ts  xterm.js + PTY, DOM живёт вне React
 │   └── TerminalView.tsx     монтирование инстанса в разметку
 ├── composer/               composer (главный приоритет продукта)
-│   └── Composer.tsx
+│   ├── Composer.tsx         состояние composer и его клавиатура
+│   ├── ComposerResizer.tsx  ручка изменения высоты
+│   ├── editor/              редактор на Tiptap
+│   │   ├── createEditor.ts   набор расширений и keymap
+│   │   └── documentText.ts   документ <-> текст, границы каретки
+│   └── state/
+│       ├── history.ts        история отправленного (↑/↓)
+│       └── toMessage.ts      документ -> Message
 ├── message/                доменная модель — без React и без Tauri
 │   ├── types.ts             Message / Block / Attachment
 │   └── adapters/            Message -> байты для конкретного target

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
 import { useFocusHotkeys } from "./app/useFocusHotkeys";
 import { Composer } from "./composer/Composer";
+import { ComposerResizer } from "./composer/ComposerResizer";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
 import { TerminalInstance } from "./terminal/TerminalInstance";
@@ -11,9 +12,11 @@ import { TerminalView } from "./terminal/TerminalView";
 /** How much of the composer stays visible while the terminal is active. */
 const PEEK_HEIGHT = 44;
 const SLIDE_MS = 160;
+const MIN_COMPOSER_HEIGHT = 96;
+const DEFAULT_COMPOSER_HEIGHT = 170;
 
 /**
- * Slice 1 layout: one terminal on top, the composer below.
+ * Layout: one terminal on top, the composer below.
  *
  * There is one input mode, not two: whichever pane is active gets the keyboard,
  * and the composer slides down to a peeking strip while the terminal has it.
@@ -74,7 +77,7 @@ export default function App() {
   }, [instance]);
 
   const collapsed = pane === "terminal";
-  const { height, animate, contentRef } = useComposerSlide(collapsed);
+  const { height, setHeight, animate } = useComposerHeight(collapsed);
 
   return (
     <div className="app">
@@ -101,11 +104,12 @@ export default function App() {
         ]
           .filter(Boolean)
           .join(" ")}
-        style={{ height }}
+        style={{ height: collapsed ? PEEK_HEIGHT : height }}
         title={collapsed ? "Открыть composer" : undefined}
         onMouseDown={collapsed ? () => focusPane("composer") : undefined}
       >
-        <div className="app__composer-inner" ref={contentRef}>
+        <div className="app__composer-inner" style={{ height }}>
+          <ComposerResizer height={height} onResize={setHeight} />
           <Composer
             onSubmit={handleSubmit}
             onAbort={handleAbort}
@@ -118,26 +122,19 @@ export default function App() {
 }
 
 /**
- * Drives the slide-down: the wrapper is sized to the composer's natural height
- * when active and to a peeking strip when not.
+ * The composer's height, and the slide-down that hides it behind a peeking
+ * strip while the terminal is active.
  *
  * The height transition is switched on only around a pane change, so dragging
  * the composer taller stays immediate instead of lagging behind an animation.
  */
-function useComposerSlide(collapsed: boolean) {
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [naturalHeight, setNaturalHeight] = useState(PEEK_HEIGHT);
+function useComposerHeight(collapsed: boolean) {
+  const [height, setRawHeight] = useState(DEFAULT_COMPOSER_HEIGHT);
   const [animate, setAnimate] = useState(false);
 
-  useEffect(() => {
-    const element = contentRef.current;
-    if (!element) return;
-    const observer = new ResizeObserver(() =>
-      setNaturalHeight(element.offsetHeight),
-    );
-    observer.observe(element);
-    setNaturalHeight(element.offsetHeight);
-    return () => observer.disconnect();
+  const setHeight = useCallback((next: number) => {
+    const max = Math.max(MIN_COMPOSER_HEIGHT, window.innerHeight * 0.7);
+    setRawHeight(Math.min(Math.max(next, MIN_COMPOSER_HEIGHT), max));
   }, []);
 
   useEffect(() => {
@@ -146,9 +143,5 @@ function useComposerSlide(collapsed: boolean) {
     return () => clearTimeout(timer);
   }, [collapsed]);
 
-  return {
-    height: collapsed ? PEEK_HEIGHT : naturalHeight,
-    animate,
-    contentRef,
-  };
+  return { height, setHeight, animate };
 }
