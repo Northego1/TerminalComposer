@@ -280,7 +280,9 @@ body {
   position: relative;
   flex: none;
   overflow: hidden;
-  background: var(--bg);
+  /* The same surface as the terminal above it -- the strip is part of that
+     panel, not a darker gutter under it. */
+  background: var(--bg-panel);
 }
 
 /* Only enabled while a pane change is animating -- see useComposerSlide. */
