@@ -173,6 +173,20 @@ export class TerminalInstance {
     return this.searchAddon.findPrevious(term, SEARCH_OPTIONS);
   }
 
+  /**
+   * Reports which match is active and how many there are. Only fires while
+   * decorations are on, which is why searches always pass `SEARCH_OPTIONS`.
+   */
+  onSearchResults(
+    handler: (results: { index: number; count: number }) => void,
+  ): () => void {
+    const subscription = this.searchAddon.onDidChangeResults(
+      ({ resultIndex, resultCount }) =>
+        handler({ index: resultIndex, count: resultCount }),
+    );
+    return () => subscription.dispose();
+  }
+
   clearSearch(): void {
     this.searchAddon.clearDecorations();
   }
@@ -187,12 +201,19 @@ export class TerminalInstance {
   }
 }
 
+/**
+ * Every match is bright blue; the one you are on is bright orange. The two are
+ * complementary, so the active match is unmistakable among the others, and both
+ * stay readable under the terminal's light foreground.
+ */
 const SEARCH_OPTIONS = {
   decorations: {
-    matchBackground: "#3b4a63",
-    activeMatchBackground: "#8ab4f8",
-    matchOverviewRuler: "#3b4a63",
-    activeMatchColorOverviewRuler: "#8ab4f8",
+    matchBackground: "#2f6fe0",
+    matchBorder: "#5b93f5",
+    matchOverviewRuler: "#2f6fe0",
+    activeMatchBackground: "#e8590c",
+    activeMatchBorder: "#ff9d5c",
+    activeMatchColorOverviewRuler: "#e8590c",
   },
 };
 

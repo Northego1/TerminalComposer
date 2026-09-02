@@ -435,6 +435,15 @@ body {
   color: #ff9a9a;
 }
 
+.terminal-search__count {
+  min-width: 44px;
+  padding-right: 4px;
+  color: var(--text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .terminal-search button {
   width: 22px;
   height: 22px;
