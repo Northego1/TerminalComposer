@@ -10,23 +10,33 @@ const message = (...blocks: Message["blocks"]): Message => ({ blocks });
 
 describe("shellAdapter", () => {
   it("wraps multi-line input in a bracketed paste when the target supports it", () => {
-    const out = shellAdapter.serialize(
+    const [paste] = shellAdapter.serialize(
       message({ type: "text", text: "line one\nline two" }),
       WITH_PASTE,
     );
-    expect(out).toBe("\x1b[200~line one\rline two\x1b[201~\r");
+    expect(paste.data).toBe("\x1b[200~line one\rline two\x1b[201~");
   });
 
-  it("sends plain text when the target has not enabled bracketed paste", () => {
-    const out = shellAdapter.serialize(
+  it("submits with a separate, delayed CR so TUIs do not swallow it", () => {
+    const writes = shellAdapter.serialize(
+      message({ type: "text", text: "hello" }),
+      WITH_PASTE,
+    );
+    expect(writes).toHaveLength(2);
+    expect(writes[1].data).toBe("\r");
+    expect(writes[1].delayBefore).toBeGreaterThan(0);
+  });
+
+  it("sends one write when the target has not enabled bracketed paste", () => {
+    const writes = shellAdapter.serialize(
       message({ type: "text", text: "echo hi" }),
       WITHOUT_PASTE,
     );
-    expect(out).toBe("echo hi\r");
+    expect(writes).toEqual([{ data: "echo hi\r" }]);
   });
 
   it("keeps attachments in place as quoted paths", () => {
-    const out = shellAdapter.serialize(
+    const writes = shellAdapter.serialize(
       message(
         { type: "text", text: "Исправь эту ошибку" },
         { type: "image", path: "/tmp/my shot.png", name: "my shot.png" },
@@ -34,13 +44,15 @@ describe("shellAdapter", () => {
       ),
       WITHOUT_PASTE,
     );
-    expect(out).toBe(
+    expect(writes[0].data).toBe(
       "Исправь эту ошибку '/tmp/my shot.png' она появляется после запуска.\r",
     );
   });
 
   it("produces nothing for an empty message", () => {
-    expect(shellAdapter.serialize(message({ type: "text", text: "  " }), WITH_PASTE)).toBe("");
+    expect(
+      shellAdapter.serialize(message({ type: "text", text: "  " }), WITH_PASTE),
+    ).toEqual([]);
   });
 });
 

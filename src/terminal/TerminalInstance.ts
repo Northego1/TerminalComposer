@@ -1,7 +1,10 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 
-import type { TargetCapabilities } from "../message/adapters/Adapter";
+import type {
+  PtyWrite,
+  TargetCapabilities,
+} from "../message/adapters/Adapter";
 import * as pty from "./ptyClient";
 
 /**
@@ -97,9 +100,16 @@ export class TerminalInstance {
     this.term.blur();
   }
 
-  /** Writes composer output (already serialized by an adapter) into the PTY. */
-  submit(payload: string): void {
-    if (payload) void pty.write(this.session.id, payload);
+  /**
+   * Performs the writes an adapter produced for one submission, honouring the
+   * pauses it asked for.
+   */
+  async submit(writes: PtyWrite[]): Promise<void> {
+    for (const write of writes) {
+      if (write.delayBefore) await sleep(write.delayBefore);
+      if (this.disposed) return;
+      await pty.write(this.session.id, write.data);
+    }
   }
 
   /**
@@ -118,4 +128,8 @@ export class TerminalInstance {
     this.term.dispose();
     await pty.close(this.session.id);
   }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }

@@ -62,7 +62,7 @@ export function Composer({ onSubmit, disabled = false }: ComposerProps) {
       />
       <div className="composer__footer">
         <span className="composer__hint">
-          Enter — отправить · Shift+Enter — новая строка · Esc — в терминал
+          Enter — отправить · Shift+Enter — новая строка · Esc — свернуть в терминал
         </span>
         <button
           type="button"

@@ -1,9 +1,19 @@
 import type { Block, Message } from "../types";
-import type { Adapter, TargetCapabilities } from "./Adapter";
+import type { Adapter, PtyWrite, TargetCapabilities } from "./Adapter";
 
 const PASTE_START = "\x1b[200~";
 const PASTE_END = "\x1b[201~";
 const SUBMIT = "\r";
+
+/**
+ * How long to wait after a paste before sending the submitting CR.
+ *
+ * TUIs built on Ink (Claude Code among them) treat input arriving immediately
+ * after a paste as part of that paste, so a CR sent in the same burst lands in
+ * their input box as a newline instead of submitting. Waiting until the paste
+ * has settled makes the CR a keystroke again.
+ */
+const PASTE_SETTLE_MS = 120;
 
 /**
  * Default adapter: writes the message into a PTY the way a terminal writes a
@@ -16,9 +26,9 @@ const SUBMIT = "\r";
 export const shellAdapter: Adapter = {
   id: "shell",
 
-  serialize(message: Message, capabilities: TargetCapabilities): string {
+  serialize(message: Message, capabilities: TargetCapabilities): PtyWrite[] {
     const body = renderBlocks(message.blocks);
-    if (!body) return "";
+    if (!body) return [];
 
     // Terminals transmit newlines inside a paste as CR, and so does xterm.js.
     const payload = body.replace(/\r?\n/g, "\r");
@@ -26,9 +36,14 @@ export const shellAdapter: Adapter = {
     // Without bracketed paste the target cannot tell a paste from typing, so a
     // multi-line message is executed line by line. That is the target's own
     // contract -- we do not fake it with escape sequences it never asked for.
-    return capabilities.bracketedPaste
-      ? PASTE_START + payload + PASTE_END + SUBMIT
-      : payload + SUBMIT;
+    if (!capabilities.bracketedPaste) {
+      return [{ data: payload + SUBMIT }];
+    }
+
+    return [
+      { data: PASTE_START + payload + PASTE_END },
+      { data: SUBMIT, delayBefore: PASTE_SETTLE_MS },
+    ];
   },
 };
 

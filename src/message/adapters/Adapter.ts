@@ -16,8 +16,22 @@ export interface TargetCapabilities {
   bracketedPaste: boolean;
 }
 
+/**
+ * One write into the PTY.
+ *
+ * A submission is a *sequence* of writes rather than one string because timing
+ * is part of what a target understands: TUIs decide whether input is a paste or
+ * typing by how fast it arrives, so an adapter has to be able to say "send this,
+ * let it settle, then send that".
+ */
+export interface PtyWrite {
+  data: string;
+  /** Milliseconds to wait before this write. */
+  delayBefore?: number;
+}
+
 export interface Adapter {
   readonly id: string;
-  /** Serializes a message into the exact string to write into the PTY. */
-  serialize(message: Message, capabilities: TargetCapabilities): string;
+  /** Serializes a message into the writes that deliver it to the target. */
+  serialize(message: Message, capabilities: TargetCapabilities): PtyWrite[];
 }

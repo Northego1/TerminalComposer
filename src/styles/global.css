@@ -83,8 +83,39 @@ body {
 }
 
 .app__composer {
-  padding: 10px 12px 12px;
+  position: relative;
+  flex: none;
+  overflow: hidden;
   background: var(--bg);
+}
+
+/* Only enabled while a pane change is animating -- see useComposerSlide. */
+.app__composer--animate {
+  transition: height 160ms ease;
+}
+
+.app__composer-inner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 12px 12px;
+}
+
+.app__composer--peek {
+  cursor: pointer;
+}
+
+/* Fades the composer out where it disappears below the window edge. */
+.app__composer--peek::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  background: linear-gradient(to bottom, transparent, var(--bg));
+  pointer-events: none;
 }
 
 .composer {
