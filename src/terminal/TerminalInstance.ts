@@ -217,6 +217,27 @@ export class TerminalInstance {
     return false;
   }
 
+  /**
+   * Whether a full-screen program owns the terminal.
+   *
+   * The alternate screen is the standard way a program says "I am drawing the
+   * whole terminal now" -- `claude`, `vim`, `htop` and `less` all switch to it.
+   * There is no signal for "I am waiting for you to choose something", so this
+   * is the closest honest answer: while it is on, the keyboard belongs to that
+   * program rather than to the composer.
+   */
+  get isFullScreen(): boolean {
+    return this.term.buffer.active.type === "alternate";
+  }
+
+  /** Fires when a program takes the whole terminal, or gives it back. */
+  onFullScreenChange(handler: (fullScreen: boolean) => void): () => void {
+    const subscription = this.term.buffer.onBufferChange((buffer) =>
+      handler(buffer.type === "alternate"),
+    );
+    return () => subscription.dispose();
+  }
+
   /** Scrollback search. Returns whether anything matched. */
   findNext(term: string): boolean {
     return this.searchAddon.findNext(term, SEARCH_OPTIONS);

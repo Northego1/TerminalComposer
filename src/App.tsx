@@ -72,11 +72,27 @@ export default function App() {
     else instance.blur();
   }, [pane, activeId]);
 
-  const handleSubmit = useCallback((message: Message) => {
-    const instance = getInstance(useTabsStore.getState().activeId);
-    if (!instance || isEmptyMessage(message)) return;
-    void instance.submit(getAdapter().serialize(message, instance.capabilities));
-  }, []);
+  // A program launched from the composer takes the screen a moment after it was
+  // sent, and hands it back when it exits. The keyboard follows it both ways.
+  useEffect(() => {
+    const instance = getInstance(activeId);
+    return instance?.onFullScreenChange((fullScreen) =>
+      focusPane(fullScreen ? "terminal" : "composer"),
+    );
+  }, [activeId, focusPane]);
+
+  const handleSubmit = useCallback(
+    (message: Message) => {
+      const instance = getInstance(useTabsStore.getState().activeId);
+      if (!instance || isEmptyMessage(message)) return;
+      void instance.submit(getAdapter().serialize(message, instance.capabilities));
+      // A full-screen program answers with its own interface -- a picker, a
+      // confirmation, a diff to accept -- so the keyboard has to follow the
+      // message there.
+      if (instance.isFullScreen) focusPane("terminal");
+    },
+    [focusPane],
+  );
 
   const handleAbort = useCallback(() => {
     getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().abort());
