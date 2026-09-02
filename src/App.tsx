@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { hooksInstalled, installHooks, onAgentEvent, removeHooks } from "./agent/events";
 import { useFocusStore } from "./app/focusStore";
 import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
@@ -64,56 +63,16 @@ export default function App() {
     forEachInstance((instance) => instance.applySettings(settings));
   }, [settings]);
 
-  // The agent's hooks follow the setting, in both directions.
-  useEffect(() => {
-    void syncAgentHooks(settings.agentHooks);
-  }, [settings.agentHooks]);
-
   // Anything that changes the tabs is worth remembering for next time.
   useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
-
-  /**
-   * What the agent in each terminal reports about itself, and where that puts
-   * the keyboard.
-   *
-   * This closes the loop the shell alone cannot: to a shell an agent is one
-   * command that runs for hours, but the agent itself knows when it took the
-   * turn and when it gave it back.
-   *
-   *   started working -> the terminal, where the work is shown;
-   *   answered        -> the composer, to write the next message;
-   *   needs an answer -> the terminal, to give it.
-   *
-   * Only for the tab being looked at. A background tab says so in the sidebar
-   * instead of taking the keyboard away from another one.
-   */
-  useEffect(() => {
-    const unlisten = onAgentEvent((sessionId, state) => {
-      const tabs = useTabsStore.getState();
-      tabs.setAgentState(sessionId, state);
-      if (sessionId !== tabs.activeId) return;
-      focusPane(state === "waiting" ? "composer" : "terminal");
-    });
-    return () => void unlisten.then((stop) => stop());
-  }, [focusPane]);
-
-  useEffect(() => {
-    const instance = getInstance(activeId);
-    if (!instance) return;
-    if (pane === "terminal") instance.focus();
-    else instance.blur();
-  }, [pane, activeId]);
 
   /**
    * Who owns the keyboard, decided by what the shell reports about itself.
    *
    * Waiting for a command -> the composer, which is where commands are written.
-   * Running one -> the terminal, whatever is running there: a full-screen
-   * program, a prompt for confirmation, a password. Nothing is inferred from
-   * the output, so no program can be a special case.
-   *
-   * Without the integration the shell says nothing and neither does this: the
-   * keyboard stays where the user put it.
+   * Running one -> the terminal, whatever is running there. Nothing is inferred
+   * from the output, so no program can be a special case; and without the
+   * integration the shell says nothing and neither does this.
    */
   const [shellState, setShellState] = useState<ShellState>("unknown");
 
@@ -252,19 +211,6 @@ export default function App() {
       </div>
     </div>
   );
-}
-
-/**
- * Brings Claude Code's settings in line with ours, and only when they differ --
- * it is another program's file, so it is not rewritten for nothing.
- */
-async function syncAgentHooks(wanted: boolean): Promise<void> {
-  const installed = await hooksInstalled();
-  if (installed === wanted) return;
-  await (wanted ? installHooks() : removeHooks()).catch(() => {
-    // Claude Code may not be installed, or its settings may be unreadable.
-    // Neither is a reason to get in the way.
-  });
 }
 
 /**

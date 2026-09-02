@@ -1,6 +1,5 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import type { AgentState } from "../agent/events";
 import { useTabsStore, type Tab } from "../app/tabsStore";
 import { useT, type Translate } from "../i18n";
 
@@ -21,7 +20,6 @@ export function Sidebar() {
   const openTerminal = useTabsStore((state) => state.openTerminal);
   const openSettings = useTabsStore((state) => state.openSettings);
   const reorder = useTabsStore((state) => state.reorder);
-  const agents = useTabsStore((state) => state.agents);
   const t = useT();
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -79,7 +77,6 @@ export function Sidebar() {
         active={tab.id === activeId}
         dragged={dragging?.id === tab.id}
         dropTarget={Boolean(dragging && dragging.id !== tab.id && dragging.overId === tab.id)}
-        agent={agents[tab.id]}
         renaming={renaming === tab.id}
         onStartRename={() => setRenaming(tab.id)}
         onFinishRename={() => setRenaming(null)}
@@ -124,7 +121,6 @@ export function Sidebar() {
 interface TabRowProps {
   tab: Tab;
   active: boolean;
-  agent?: AgentState;
   dragged: boolean;
   dropTarget: boolean;
   renaming: boolean;
@@ -137,7 +133,6 @@ interface TabRowProps {
 function TabRow({
   tab,
   active,
-  agent,
   dragged,
   dropTarget,
   renaming,
@@ -194,14 +189,6 @@ function TabRow({
             {tab.kind === "terminal" ? "›_" : "⚙"}
           </span>
           {tab.name}
-          {agent && agent !== "working" && (
-            <span
-              className={`sidebar__agent sidebar__agent--${agent}`}
-              title={t(
-                agent === "attention" ? "sidebar.agent.attention" : "sidebar.agent.waiting",
-              )}
-            />
-          )}
         </button>
       )}
       <button
