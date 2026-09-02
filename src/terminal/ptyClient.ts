@@ -30,6 +30,16 @@ export function resize(id: string, cols: number, rows: number): Promise<void> {
   return invoke<void>("pty_resize", { id, cols, rows });
 }
 
+export interface SessionContext {
+  cwd: string;
+  branch: string | null;
+}
+
+/** Where the shell is now and what is checked out there. */
+export function context(id: string): Promise<SessionContext> {
+  return invoke<SessionContext>("pty_context", { id });
+}
+
 export function close(id: string): Promise<void> {
   return invoke<void>("pty_close", { id });
 }

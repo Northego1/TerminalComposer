@@ -84,6 +84,20 @@ impl PtySession {
             .map_err(|e| format!("failed to resize pty: {e}"))
     }
 
+    /// Where the shell is now, and what is checked out there.
+    ///
+    /// The cwd comes from the shell's own `/proc` symlink, so it follows every
+    /// `cd` -- guessing it from terminal output would only ever be a guess.
+    pub fn context(&self) -> SessionContext {
+        let cwd = self
+            .pid
+            .and_then(|pid| std::fs::read_link(format!("/proc/{pid}/cwd")).ok())
+            .map(|path| path.to_string_lossy().into_owned())
+            .unwrap_or_else(|| self.cwd.clone());
+        let branch = crate::vcs::branch_at(std::path::Path::new(&cwd));
+        SessionContext { cwd, branch }
+    }
+
     pub fn close(mut self) {
         if let Some(pid) = self.pid {
             terminate::terminate_session(pid);
@@ -93,6 +107,13 @@ impl PtySession {
         // Dropping the master closes the fd, which makes the reader thread see
         // EOF and emit the exit event.
     }
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SessionContext {
+    pub cwd: String,
+    pub branch: Option<String>,
 }
 
 fn pty_size(cols: u16, rows: u16) -> PtySize {

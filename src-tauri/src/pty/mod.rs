@@ -14,7 +14,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, State};
 
-use session::PtySession;
+use session::{PtySession, SessionContext};
 
 #[derive(Default)]
 pub struct PtyRegistry {
@@ -92,6 +92,16 @@ pub fn pty_resize(
     rows: u16,
 ) -> Result<(), String> {
     registry.with(&id, |session| session.resize(cols, rows))?
+}
+
+/// Where the shell is and what is checked out there -- what the composer shows
+/// next to its prompt.
+#[tauri::command]
+pub fn pty_context(
+    registry: State<'_, PtyRegistry>,
+    id: String,
+) -> Result<SessionContext, String> {
+    registry.with(&id, |session| session.context())
 }
 
 #[tauri::command]

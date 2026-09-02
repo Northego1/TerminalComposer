@@ -7,6 +7,7 @@
 mod clipboard;
 mod pty;
 mod state;
+mod vcs;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -20,6 +21,7 @@ pub fn run() {
             pty::pty_write,
             pty::pty_resize,
             pty::pty_close,
+            pty::pty_context,
             clipboard::clipboard_read_attachments,
             clipboard::file_info,
             state::state_read,

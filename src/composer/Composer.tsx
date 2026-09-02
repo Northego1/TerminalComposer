@@ -8,11 +8,12 @@ import { scheduleWorkspaceSave } from "../app/workspace";
 import { t as translate, useT } from "../i18n";
 import { isEmptyMessage, type Message } from "../message/types";
 import type { Attachment } from "../message/types";
+import { SessionContextLine, useSessionContext } from "./SessionContextLine";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
 import { useFileDrop } from "./attachments/useFileDrop";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
-import { docToText } from "./editor/documentText";
+import { docToText, needsFullComposer } from "./editor/documentText";
 import {
   loadComposerState,
   pruneComposerStates,
@@ -52,6 +53,12 @@ export function Composer({
   disabled = false,
 }: ComposerProps) {
   const [undoable, setUndoable] = useState<Draft | null>(null);
+  /**
+   * Compact while the content is one command line, full once it is a message.
+   * Derived from the document on every edit, so erasing back to one line
+   * returns to the compact shape without anything to switch.
+   */
+  const [full, setFull] = useState(false);
   const t = useT();
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
@@ -129,6 +136,7 @@ export function Composer({
     onFocus: () => focusPane("composer"),
     onUpdate: ({ editor: updated }) => {
       rememberUndoable(null);
+      setFull(needsFullComposer(updated.state.doc));
       // Keeping the session's draft current on every edit is what lets both
       // switching sessions and quitting the app pick it up unchanged.
       saveComposerState(loadedId.current, {
@@ -205,6 +213,7 @@ export function Composer({
   /** Restored content lands with the caret at the end, ready to be edited. */
   function replaceContent(draft: Draft) {
     editor?.commands.setContent(draft.doc);
+    if (editor) setFull(needsFullComposer(editor.state.doc));
     editor?.commands.focus("end");
     rememberUndoable(null);
   }
@@ -224,6 +233,7 @@ export function Composer({
   // belongs to the session that is open, and comes back when it is again.
   const tabs = useTabsStore((state) => state.tabs);
   const activeId = useTabsStore((state) => state.activeId);
+  const sessionContext = useSessionContext(activeId);
 
   useEffect(() => {
     if (!editor || loadedId.current === activeId) return;
@@ -237,6 +247,7 @@ export function Composer({
 
     const restored = loadComposerState(activeId);
     editor.commands.setContent(restored.doc);
+    setFull(needsFullComposer(editor.state.doc));
     history.current = restored.history;
     rememberUndoable(null);
     loadedId.current = activeId;
@@ -274,6 +285,7 @@ export function Composer({
       ref={dropTarget}
       className={[
         "composer",
+        full ? "composer--full" : "composer--flat",
         pane === "composer" ? "composer--active" : "",
         over ? "composer--drop" : "",
       ]
@@ -281,26 +293,39 @@ export function Composer({
         .join(" ")}
       onMouseDown={() => focusPane("composer")}
     >
-      <EditorContent editor={editor} className="composer__surface" />
-      <div className="composer__footer">
-        <span
-          className={`composer__hint${undoable !== null || over ? " composer__hint--undo" : ""}`}
-        >
-          {over
-            ? t("composer.hint.drop")
-            : undoable !== null
-              ? t("composer.hint.undo")
-              : t("composer.hint")}
-        </span>
-        <button
-          type="button"
-          className="composer__send"
-          onClick={() => handlers.current.submit()}
-          disabled={disabled || empty}
-        >
-          {t("composer.send")}
-        </button>
+      {full && <SessionContextLine context={sessionContext} />}
+
+      <div className="composer__row">
+        {!full && (
+          <span className="composer__chevron" aria-hidden="true">
+            ❯
+          </span>
+        )}
+        <EditorContent editor={editor} className="composer__surface" />
+        {!full && <SessionContextLine context={sessionContext} />}
       </div>
+
+      {full && (
+        <div className="composer__footer">
+          <span
+            className={`composer__hint${undoable !== null || over ? " composer__hint--undo" : ""}`}
+          >
+            {over
+              ? t("composer.hint.drop")
+              : undoable !== null
+                ? t("composer.hint.undo")
+                : t("composer.hint")}
+          </span>
+          <button
+            type="button"
+            className="composer__send"
+            onClick={() => handlers.current.submit()}
+            disabled={disabled || empty}
+          >
+            {t("composer.send")}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
