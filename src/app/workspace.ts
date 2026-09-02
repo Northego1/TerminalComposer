@@ -7,6 +7,8 @@
  * in sync.
  */
 import { loadComposerState, type ComposerState } from "../composer/state/drafts";
+import { sharedHistory } from "../composer/state/sharedHistory";
+import type { History } from "../composer/state/history";
 import { readDocument, writeDocument } from "./persistence";
 import { useTabsStore, type Tab } from "./tabsStore";
 
@@ -22,6 +24,8 @@ export interface PersistedTab {
 export interface Workspace {
   tabs: PersistedTab[];
   activeIndex: number;
+  /** One list for every terminal, the way a shell has one history file. */
+  history?: History;
 }
 
 export function readWorkspace(): Promise<Workspace | null> {
@@ -52,5 +56,6 @@ function snapshot(): Workspace {
       0,
       tabs.findIndex((tab) => tab.id === activeId),
     ),
+    history: sharedHistory(),
   };
 }

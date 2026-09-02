@@ -1,32 +1,25 @@
 import type { JSONContent } from "@tiptap/core";
 
-import {
-  EMPTY_DRAFT,
-  EMPTY_HISTORY,
-  remember,
-  type Draft,
-  type History,
-} from "./history";
+import { EMPTY_DRAFT, type Draft, type History } from "./history";
+import { rememberShared } from "./sharedHistory";
 
 /**
  * Per-session composer state.
  *
- * Each terminal gets its own draft and its own recall history: typing a long
- * prompt for one session and switching to another must not mix the two. This
- * is a plain module-level map rather than React state -- nothing renders from
- * it directly, the editor is loaded from it when the active session changes.
+ * Each terminal keeps its own draft: typing a long prompt for one session and
+ * switching to another must not mix the two. The history is shared and lives in
+ * `./sharedHistory`, because what has already been run belongs to no one tab.
+ *
+ * A plain module-level map rather than React state -- nothing renders from it
+ * directly, the editor is loaded from it when the active session changes.
  */
 export interface ComposerState {
   doc: JSONContent;
-  history: History;
 }
 
 const states = new Map<string, ComposerState>();
 
-export const EMPTY_COMPOSER_STATE: ComposerState = {
-  doc: EMPTY_DRAFT.doc,
-  history: EMPTY_HISTORY,
-};
+export const EMPTY_COMPOSER_STATE: ComposerState = { doc: EMPTY_DRAFT.doc };
 
 export function loadComposerState(sessionId: string | null): ComposerState {
   if (!sessionId) return EMPTY_COMPOSER_STATE;
@@ -47,14 +40,11 @@ export function saveComposerState(
  * including the ones typed straight into the terminal, which the composer would
  * otherwise never see.
  */
-export function rememberCommand(sessionId: string, text: string): ComposerState {
-  const state = loadComposerState(sessionId);
-  const next = { ...state, history: remember(state.history, draftOf(text)) };
-  states.set(sessionId, next);
-  return next;
+export function rememberCommand(text: string): History {
+  return rememberShared(draftOf(text));
 }
 
-function draftOf(text: string): Draft {
+export function draftOf(text: string): Draft {
   return {
     doc: {
       type: "doc",

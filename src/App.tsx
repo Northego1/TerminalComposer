@@ -8,6 +8,8 @@ import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
 import { Composer } from "./composer/Composer";
 import { saveComposerState } from "./composer/state/drafts";
+import { setSharedHistory } from "./composer/state/sharedHistory";
+import { EMPTY_HISTORY, remember, type History } from "./composer/state/history";
 import { useT } from "./i18n";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
@@ -301,6 +303,8 @@ async function start(): Promise<void> {
   const workspace = await readWorkspace();
   const tabs = useTabsStore.getState();
 
+  if (workspace) setSharedHistory(historyOf(workspace));
+
   if (workspace?.tabs.length) {
     await tabs.restore(workspace.tabs, workspace.activeIndex, (id, index) => {
       const composer = workspace.tabs[index]?.composer;
@@ -310,6 +314,21 @@ async function start(): Promise<void> {
   }
 
   await tabs.openTerminal();
+}
+
+/**
+ * The history saved last time.
+ *
+ * It used to be kept per tab; those lists are folded into the one shared list
+ * rather than dropped, so nothing typed before this changed is lost.
+ */
+function historyOf(workspace: { history?: History; tabs: Array<{ composer?: unknown }> }): History {
+  if (workspace.history) return workspace.history;
+
+  const older = workspace.tabs
+    .map((tab) => tab.composer as { history?: History } | undefined)
+    .flatMap((composer) => composer?.history?.entries ?? []);
+  return older.reduce(remember, EMPTY_HISTORY);
 }
 
 /**

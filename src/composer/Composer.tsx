@@ -25,12 +25,12 @@ import {
 } from "./state/drafts";
 import {
   continuationOf,
-  EMPTY_HISTORY,
+  EMPTY_DRAFT,
   next,
   previous,
-  remember,
   type Draft,
 } from "./state/history";
+import { rememberShared, setSharedHistory, sharedHistory } from "./state/sharedHistory";
 import { toMessage } from "./state/toMessage";
 
 /** How long after a submission Esc still means "take it back". */
@@ -72,7 +72,6 @@ export function Composer({
 
   // Keyboard handlers run outside React's render, so everything they touch
   // lives in refs and stays current without rebuilding the editor.
-  const history = useRef(EMPTY_HISTORY);
   const undoableRef = useRef<Draft | null>(null);
   const callbacks = useRef({ onSubmit, onAbort, onInterrupt });
   useEffect(() => {
@@ -120,7 +119,7 @@ export function Composer({
     extensions: composerExtensions(
       () => handlers.current,
       () => translate("composer.placeholder"),
-      (typed) => continuationOf(history.current, typed),
+      (typed) => continuationOf(sharedHistory(), typed),
     ),
     editorProps: {
       attributes: { class: "composer__editor" },
@@ -155,10 +154,7 @@ export function Composer({
       setFull(needsFullComposer(updated.state.doc));
       // Keeping the session's draft current on every edit is what lets both
       // switching sessions and quitting the app pick it up unchanged.
-      saveComposerState(loadedId.current, {
-        doc: updated.getJSON(),
-        history: history.current,
-      });
+      saveComposerState(loadedId.current, { doc: updated.getJSON() });
       scheduleWorkspaceSave();
     },
   });
@@ -178,7 +174,7 @@ export function Composer({
 
       const sent = currentDraft();
       callbacks.current.onSubmit(message);
-      history.current = remember(history.current, sent);
+      rememberShared(sent);
       editor.commands.clearContent(true);
       rememberUndoable(sent);
       return true;
@@ -200,18 +196,18 @@ export function Composer({
 
     recallPrevious: () => {
       if (!editor) return false;
-      const recalled = previous(history.current, currentDraft());
+      const recalled = previous(sharedHistory(), currentDraft());
       if (!recalled) return false;
-      history.current = recalled.history;
+      setSharedHistory(recalled.history);
       replaceContent(recalled.draft);
       return true;
     },
 
     recallNext: () => {
       if (!editor) return false;
-      const recalled = next(history.current);
+      const recalled = next(sharedHistory());
       if (!recalled) return false;
-      history.current = recalled.history;
+      setSharedHistory(recalled.history);
       replaceContent(recalled.draft);
       return true;
     },
@@ -239,7 +235,7 @@ export function Composer({
   /** The editor document as a draft: what history and undo store. */
   function currentDraft(): Draft {
     return {
-      doc: editor?.getJSON() ?? EMPTY_HISTORY.draft.doc,
+      doc: editor?.getJSON() ?? EMPTY_DRAFT.doc,
       text: editor ? docToText(editor.state.doc) : "",
     };
   }
@@ -273,16 +269,12 @@ export function Composer({
     if (!editor || loadedId.current === activeId) return;
 
     if (loadedId.current !== null) {
-      saveComposerState(loadedId.current, {
-        doc: editor.getJSON(),
-        history: history.current,
-      });
+      saveComposerState(loadedId.current, { doc: editor.getJSON() });
     }
 
     const restored = loadComposerState(activeId);
     editor.commands.setContent(restored.doc);
     setFull(needsFullComposer(editor.state.doc));
-    history.current = restored.history;
     rememberUndoable(null);
     loadedId.current = activeId;
   }, [editor, activeId]);
@@ -300,7 +292,7 @@ export function Composer({
   useEffect(() => {
     if (!activeId) return;
     return getInstance(activeId)?.onCommand((command) => {
-      history.current = rememberCommand(activeId, command).history;
+      rememberCommand(command);
       scheduleWorkspaceSave();
     });
   }, [activeId]);
