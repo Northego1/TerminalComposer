@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
 import { getInstance, useSessionsStore } from "./app/sessionsStore";
-import { useFocusHotkeys } from "./app/useFocusHotkeys";
+import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { Composer } from "./composer/Composer";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
 import { Sidebar } from "./sidebar/Sidebar";
+import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
 
 /** How much of the composer stays visible while the terminal is active. */
@@ -36,7 +37,8 @@ export default function App() {
   const open = useSessionsStore((state) => state.open);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
-  useFocusHotkeys();
+  const [searching, setSearching] = useState(false);
+  useGlobalHotkeys({ openSearch: () => setSearching(true) });
 
   // A ref survives StrictMode's double mount, so the first terminal opens once.
   const started = useRef(false);
@@ -89,6 +91,14 @@ export default function App() {
         </header>
 
         <main className="app__body">
+          {searching && (
+            <TerminalSearch
+              onClose={() => {
+                setSearching(false);
+                focusPane("terminal");
+              }}
+            />
+          )}
           {error && <div className="app__error">Не удалось запустить shell: {error}</div>}
           {sessions.map((session) => {
             const instance = getInstance(session.id);

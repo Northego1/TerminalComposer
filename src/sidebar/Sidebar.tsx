@@ -36,11 +36,16 @@ export function Sidebar() {
             </button>
           </div>
         ))}
-      </div>
 
-      <button type="button" className="sidebar__new" onClick={() => void open()}>
-        + Новый терминал
-      </button>
+        <button
+          type="button"
+          className="sidebar__add"
+          onClick={() => void open()}
+          title="Новый терминал"
+        >
+          +
+        </button>
+      </div>
     </aside>
   );
 }

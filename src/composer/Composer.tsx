@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
+import { useSessionsStore } from "../app/sessionsStore";
 import { isEmptyMessage, type Message } from "../message/types";
 import type { Attachment } from "../message/types";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
@@ -10,6 +11,11 @@ import { useFileDrop } from "./attachments/useFileDrop";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
 import { docToText } from "./editor/documentText";
+import {
+  loadComposerState,
+  pruneComposerStates,
+  saveComposerState,
+} from "./state/drafts";
 import {
   EMPTY_HISTORY,
   next,
@@ -198,6 +204,33 @@ export function Composer({
   useEffect(() => {
     if (dragging) focusPane("composer");
   }, [dragging, focusPane]);
+
+  // Each terminal has its own draft and its own history: what is in the editor
+  // belongs to the session that is open, and comes back when it is again.
+  const sessions = useSessionsStore((state) => state.sessions);
+  const activeId = useSessionsStore((state) => state.activeId);
+  const loadedId = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!editor || loadedId.current === activeId) return;
+
+    if (loadedId.current !== null) {
+      saveComposerState(loadedId.current, {
+        doc: editor.getJSON(),
+        history: history.current,
+      });
+    }
+
+    const restored = loadComposerState(activeId);
+    editor.commands.setContent(restored.doc);
+    history.current = restored.history;
+    rememberUndoable(null);
+    loadedId.current = activeId;
+  }, [editor, activeId]);
+
+  useEffect(() => {
+    pruneComposerStates(sessions.map((session) => session.id));
+  }, [sessions]);
 
   useEffect(() => {
     if (!editor) return;

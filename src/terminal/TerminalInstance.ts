@@ -1,4 +1,5 @@
 import { FitAddon } from "@xterm/addon-fit";
+import { SearchAddon } from "@xterm/addon-search";
 import { Terminal } from "@xterm/xterm";
 
 import type {
@@ -18,6 +19,7 @@ export class TerminalInstance {
   readonly element: HTMLDivElement;
   private readonly term: Terminal;
   private readonly fitAddon: FitAddon;
+  private readonly searchAddon: SearchAddon;
   private readonly disposers: Array<() => void> = [];
   private resizeObserver?: ResizeObserver;
   private disposed = false;
@@ -46,6 +48,8 @@ export class TerminalInstance {
     });
     this.fitAddon = new FitAddon();
     this.term.loadAddon(this.fitAddon);
+    this.searchAddon = new SearchAddon();
+    this.term.loadAddon(this.searchAddon);
     this.term.open(this.element);
   }
 
@@ -160,6 +164,19 @@ export class TerminalInstance {
     return { bracketedPaste: this.term.modes.bracketedPasteMode };
   }
 
+  /** Scrollback search. Returns whether anything matched. */
+  findNext(term: string): boolean {
+    return this.searchAddon.findNext(term, SEARCH_OPTIONS);
+  }
+
+  findPrevious(term: string): boolean {
+    return this.searchAddon.findPrevious(term, SEARCH_OPTIONS);
+  }
+
+  clearSearch(): void {
+    this.searchAddon.clearDecorations();
+  }
+
   async dispose(): Promise<void> {
     if (this.disposed) return;
     this.disposed = true;
@@ -169,6 +186,15 @@ export class TerminalInstance {
     await pty.close(this.session.id);
   }
 }
+
+const SEARCH_OPTIONS = {
+  decorations: {
+    matchBackground: "#3b4a63",
+    activeMatchBackground: "#8ab4f8",
+    matchOverviewRuler: "#3b4a63",
+    activeMatchColorOverviewRuler: "#8ab4f8",
+  },
+};
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
