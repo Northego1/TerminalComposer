@@ -142,7 +142,7 @@ body {
 }
 
 .sidebar__item--dragging {
-  opacity: 0.4;
+  opacity: 0.75;
 }
 
 .sidebar__item--drop {
@@ -328,7 +328,7 @@ body {
   position: absolute;
   left: 50%;
   z-index: 2;
-  opacity: 0.4;
+  opacity: 0.75;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -443,7 +443,7 @@ body {
 }
 
 .composer__send:disabled {
-  opacity: 0.4;
+  opacity: 0.75;
   cursor: default;
 }
 
