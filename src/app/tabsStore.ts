@@ -25,6 +25,12 @@ export interface SettingsTab {
 
 export type Tab = TerminalTab | SettingsTab;
 
+/** Files opened beside one terminal. Several at a time, like tabs anywhere. */
+export interface ViewerFiles {
+  paths: string[];
+  active: string;
+}
+
 /**
  * Live terminals are kept here rather than in the store: each one owns a DOM
  * element and a PTY, so it is a resource, not state. The store holds the
@@ -47,10 +53,11 @@ interface TabsState {
   tabs: Tab[];
   activeId: string | null;
   error: string | null;
-  /** The file each tab is looking at, if any. */
-  viewers: Record<string, string>;
+  /** The files each terminal tab has open beside it, and which is shown. */
+  viewers: Record<string, ViewerFiles>;
   openFile: (path: string) => void;
-  closeFile: (tabId: string) => void;
+  showFile: (tabId: string, path: string) => void;
+  closeFile: (tabId: string, path: string) => void;
   openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
   openSettings: (name?: string) => void;
   restore: (
@@ -70,16 +77,36 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   error: null,
   viewers: {},
 
-  /** Opens a file next to the terminal that named it. */
+  /** Opens a file next to the terminal that named it, or brings it forward. */
   openFile: (path) =>
-    set((state) =>
-      state.activeId ? { viewers: { ...state.viewers, [state.activeId]: path } } : state,
-    ),
-
-  closeFile: (tabId) =>
     set((state) => {
-      const { [tabId]: _closed, ...viewers } = state.viewers;
-      return { viewers };
+      const tabId = state.activeId;
+      if (!tabId) return state;
+      const open = state.viewers[tabId]?.paths ?? [];
+      const paths = open.includes(path) ? open : [...open, path];
+      return { viewers: { ...state.viewers, [tabId]: { paths, active: path } } };
+    }),
+
+  showFile: (tabId, path) =>
+    set((state) => {
+      const open = state.viewers[tabId];
+      if (!open) return state;
+      return { viewers: { ...state.viewers, [tabId]: { ...open, active: path } } };
+    }),
+
+  closeFile: (tabId, path) =>
+    set((state) => {
+      const open = state.viewers[tabId];
+      if (!open) return state;
+      const paths = open.paths.filter((each) => each !== path);
+      if (!paths.length) {
+        const { [tabId]: _empty, ...viewers } = state.viewers;
+        return { viewers };
+      }
+      const index = open.paths.indexOf(path);
+      const active =
+        open.active === path ? (paths[Math.min(index, paths.length - 1)] ?? paths[0]) : open.active;
+      return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
     }),
 
   openTerminal: async (spawn = {}) => {
@@ -103,16 +130,36 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         error: null,
   viewers: {},
 
-  /** Opens a file next to the terminal that named it. */
+  /** Opens a file next to the terminal that named it, or brings it forward. */
   openFile: (path) =>
-    set((state) =>
-      state.activeId ? { viewers: { ...state.viewers, [state.activeId]: path } } : state,
-    ),
-
-  closeFile: (tabId) =>
     set((state) => {
-      const { [tabId]: _closed, ...viewers } = state.viewers;
-      return { viewers };
+      const tabId = state.activeId;
+      if (!tabId) return state;
+      const open = state.viewers[tabId]?.paths ?? [];
+      const paths = open.includes(path) ? open : [...open, path];
+      return { viewers: { ...state.viewers, [tabId]: { paths, active: path } } };
+    }),
+
+  showFile: (tabId, path) =>
+    set((state) => {
+      const open = state.viewers[tabId];
+      if (!open) return state;
+      return { viewers: { ...state.viewers, [tabId]: { ...open, active: path } } };
+    }),
+
+  closeFile: (tabId, path) =>
+    set((state) => {
+      const open = state.viewers[tabId];
+      if (!open) return state;
+      const paths = open.paths.filter((each) => each !== path);
+      if (!paths.length) {
+        const { [tabId]: _empty, ...viewers } = state.viewers;
+        return { viewers };
+      }
+      const index = open.paths.indexOf(path);
+      const active =
+        open.active === path ? (paths[Math.min(index, paths.length - 1)] ?? paths[0]) : open.active;
+      return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
     }),
       }));
       return instance.session.id;

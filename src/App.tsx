@@ -84,8 +84,9 @@ export default function App() {
    */
   const [shellState, setShellState] = useState<ShellState>("unknown");
   const viewers = useTabsStore((state) => state.viewers);
+  const showFile = useTabsStore((state) => state.showFile);
   const closeFile = useTabsStore((state) => state.closeFile);
-  /** The file the active tab is looking at, if any. */
+  /** The files the active tab has open beside it, if any. */
   const viewing = activeId ? viewers[activeId] : undefined;
 
   useEffect(() => {
@@ -189,7 +190,11 @@ export default function App() {
           </div>
 
           {viewing && activeId && onTerminal && (
-            <FileViewer path={viewing} onClose={() => closeFile(activeId)} />
+            <FileViewer
+              files={viewing}
+              onShow={(path) => showFile(activeId, path)}
+              onClose={(path) => closeFile(activeId, path)}
+            />
           )}
         </main>
 

@@ -267,38 +267,65 @@ body {
   background: var(--bg-panel);
 }
 
-.viewer__header {
+.viewer__tabs {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 10px 7px 14px;
+  flex: none;
+  gap: 2px;
+  padding: 5px 6px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  overflow-x: auto;
 }
 
-.viewer__name {
+.viewer__tab {
+  display: flex;
+  align-items: center;
+  flex: none;
+  max-width: 200px;
+  border-radius: 8px 8px 0 0;
+  color: var(--text-dim);
+}
+
+.viewer__tab:hover {
+  background: var(--bg-elevated);
+}
+
+.viewer__tab--active {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.viewer__tab > button:first-child {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 4px 6px 10px;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 
-.viewer__header button {
+.viewer__close {
   flex: none;
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
   padding: 0;
   border: none;
   border-radius: 5px;
   background: transparent;
   color: var(--text-dim);
   font: inherit;
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1;
   cursor: pointer;
 }
 
-.viewer__header button:hover {
+.viewer__close:hover {
   background: var(--border);
   color: var(--text);
 }
