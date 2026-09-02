@@ -58,12 +58,11 @@ pub fn listen(app: AppHandle) {
     };
 
     std::thread::spawn(move || {
-        // Opened for writing as well, so the reader never sees end-of-file
-        // between one hook finishing and the next one starting.
-        let Ok(keep_open) = std::fs::OpenOptions::new().write(true).open(&path) else {
-            return;
-        };
-        let Ok(pipe) = std::fs::File::open(&path) else {
+        // Read *and* write, in one handle and in that order. Opening a pipe for
+        // writing alone blocks until somebody opens it for reading, which is
+        // nobody yet -- this thread. Read-write never blocks, and it also means
+        // the reader never sees end-of-file between one hook and the next.
+        let Ok(pipe) = std::fs::OpenOptions::new().read(true).write(true).open(&path) else {
             return;
         };
 
@@ -81,8 +80,6 @@ pub fn listen(app: AppHandle) {
                 },
             );
         }
-
-        drop(keep_open);
     });
 }
 

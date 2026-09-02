@@ -10,5 +10,14 @@
 [ -p "$TERMINAL_COMPOSER_EVENTS" ] || exit 0
 [ -n "$TERMINAL_COMPOSER_SESSION" ] || exit 0
 
+# Writing to a pipe blocks while nothing is reading it, and a hook that blocks
+# holds up the agent that ran it. The pipe outlives a terminal that has been
+# closed, so the wait is capped rather than trusted.
+#
 # Short enough to be written atomically, so concurrent hooks cannot interleave.
-printf '%s %s\n' "$TERMINAL_COMPOSER_SESSION" "$1" >> "$TERMINAL_COMPOSER_EVENTS"
+if command -v timeout >/dev/null 2>&1; then
+  timeout 1 sh -c 'printf "%s %s\n" "$1" "$2" >> "$3"' _ \
+    "$TERMINAL_COMPOSER_SESSION" "$1" "$TERMINAL_COMPOSER_EVENTS"
+else
+  printf '%s %s\n' "$TERMINAL_COMPOSER_SESSION" "$1" >> "$TERMINAL_COMPOSER_EVENTS"
+fi
