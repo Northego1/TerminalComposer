@@ -68,6 +68,11 @@ export default function App() {
     [instance],
   );
 
+  const handleAbort = useCallback(() => {
+    if (!instance) return;
+    void instance.submit(getAdapter().abort());
+  }, [instance]);
+
   const collapsed = pane === "terminal";
   const { height, animate, contentRef } = useComposerSlide(collapsed);
 
@@ -101,7 +106,11 @@ export default function App() {
         onMouseDown={collapsed ? () => focusPane("composer") : undefined}
       >
         <div className="app__composer-inner" ref={contentRef}>
-          <Composer onSubmit={handleSubmit} disabled={!instance} />
+          <Composer
+            onSubmit={handleSubmit}
+            onAbort={handleAbort}
+            disabled={!instance}
+          />
         </div>
       </footer>
     </div>

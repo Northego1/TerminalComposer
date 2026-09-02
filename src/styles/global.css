@@ -163,6 +163,10 @@ body {
   font-size: 11px;
 }
 
+.composer__hint--undo {
+  color: var(--accent);
+}
+
 .composer__send {
   padding: 4px 12px;
   border: 1px solid var(--border);

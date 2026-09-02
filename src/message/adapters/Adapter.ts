@@ -34,4 +34,12 @@ export interface Adapter {
   readonly id: string;
   /** Serializes a message into the writes that deliver it to the target. */
   serialize(message: Message, capabilities: TargetCapabilities): PtyWrite[];
+  /**
+   * Best-effort "stop what I just sent".
+   *
+   * Nothing can un-send bytes already written to a PTY, so this is an
+   * interrupt, not an undo: how a target is asked to abort is target
+   * knowledge, which is why it lives here.
+   */
+  abort(): PtyWrite[];
 }

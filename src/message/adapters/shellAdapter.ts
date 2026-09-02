@@ -4,6 +4,7 @@ import type { Adapter, PtyWrite, TargetCapabilities } from "./Adapter";
 const PASTE_START = "\x1b[200~";
 const PASTE_END = "\x1b[201~";
 const SUBMIT = "\r";
+const ESCAPE = "\x1b";
 
 /**
  * How long to wait after a paste before sending the submitting CR.
@@ -44,6 +45,15 @@ export const shellAdapter: Adapter = {
       { data: PASTE_START + payload + PASTE_END },
       { data: SUBMIT, delayBefore: PASTE_SETTLE_MS },
     ];
+  },
+
+  // ESC is what interrupts a TUI agent (Claude Code and friends stop the
+  // current turn on it). At a shell prompt it is harmless: zsh treats a lone
+  // ESC as an unfinished meta sequence and drops it after KEYTIMEOUT. We
+  // deliberately do not send Ctrl+C -- an accidental Esc must never kill a
+  // running process.
+  abort(): PtyWrite[] {
+    return [{ data: ESCAPE }];
   },
 };
 
