@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import type { CompletionState } from "./usePathCompletion";
@@ -14,6 +15,14 @@ interface CompletionListProps {
  * inside it would be cut off immediately.
  */
 export function CompletionList({ state, onChoose }: CompletionListProps) {
+  const selectedRef = useRef<HTMLLIElement>(null);
+
+  // Arrow keys move the selection past the visible edge, and only the list
+  // itself can follow it there.
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [state.selected]);
+
   if (!state.anchor || !state.items.length) return null;
 
   return createPortal(
@@ -22,7 +31,7 @@ export function CompletionList({ state, onChoose }: CompletionListProps) {
       style={{ left: state.anchor.left, top: state.anchor.top }}
     >
       {state.items.map((item, index) => (
-        <li key={item.path}>
+        <li key={item.path} ref={index === state.selected ? selectedRef : undefined}>
           <button
             type="button"
             className={`completion__item${
