@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
+import { getInstance, useSessionsStore } from "./app/sessionsStore";
 import { useFocusHotkeys } from "./app/useFocusHotkeys";
 import { Composer } from "./composer/Composer";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
-import { TerminalInstance } from "./terminal/TerminalInstance";
+import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalView } from "./terminal/TerminalView";
 
 /** How much of the composer stays visible while the terminal is active. */
@@ -13,7 +14,8 @@ const PEEK_HEIGHT = 44;
 const SLIDE_MS = 160;
 
 /**
- * Layout: one terminal on top, the composer below.
+ * Layout: terminals on the left, the active one on the right with the composer
+ * under it.
  *
  * There is one input mode, not two: whichever pane is active gets the keyboard,
  * and the composer slides down to a peeking strip while the terminal has it.
@@ -24,101 +26,106 @@ const SLIDE_MS = 160;
  *   Composer -> Message -> Adapter -> TerminalInstance (PTY)
  *
  * The composer produces the message, the adapter decides how it is written,
- * and neither knows about the other.
+ * and neither knows about the other. One composer serves every session and
+ * always talks to the active one.
  */
 export default function App() {
-  const [instance, setInstance] = useState<TerminalInstance | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const sessions = useSessionsStore((state) => state.sessions);
+  const activeId = useSessionsStore((state) => state.activeId);
+  const error = useSessionsStore((state) => state.error);
+  const open = useSessionsStore((state) => state.open);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
   useFocusHotkeys();
 
+  // A ref survives StrictMode's double mount, so the first terminal opens once.
+  const started = useRef(false);
   useEffect(() => {
-    let cancelled = false;
-    let created: TerminalInstance | null = null;
-
-    TerminalInstance.create()
-      .then((terminal) => {
-        created = terminal;
-        if (cancelled) return void terminal.dispose();
-        setInstance(terminal);
-      })
-      .catch((cause: unknown) => {
-        if (!cancelled) setError(String(cause));
-      });
-
-    return () => {
-      cancelled = true;
-      void created?.dispose();
-      setInstance(null);
-    };
-  }, []);
+    if (started.current) return;
+    started.current = true;
+    void open();
+  }, [open]);
 
   useEffect(() => {
+    const instance = getInstance(activeId);
     if (!instance) return;
     if (pane === "terminal") instance.focus();
     else instance.blur();
-  }, [pane, instance]);
+  }, [pane, activeId]);
 
   const handleSubmit = useCallback(
     (message: Message) => {
+      const instance = getInstance(useSessionsStore.getState().activeId);
       if (!instance || isEmptyMessage(message)) return;
       void instance.submit(getAdapter().serialize(message, instance.capabilities));
     },
-    [instance],
+    [],
   );
 
   const handleAbort = useCallback(() => {
-    if (!instance) return;
-    void instance.submit(getAdapter().abort());
-  }, [instance]);
+    getInstance(useSessionsStore.getState().activeId)?.submit(getAdapter().abort());
+  }, []);
 
   const handleInterrupt = useCallback(() => {
-    if (!instance) return;
-    void instance.submit(getAdapter().interrupt());
-  }, [instance]);
+    getInstance(useSessionsStore.getState().activeId)?.submit(
+      getAdapter().interrupt(),
+    );
+  }, []);
 
+  const active = sessions.find((session) => session.id === activeId);
   const collapsed = pane === "terminal";
   const { height, animate, contentRef } = useComposerSlide(collapsed);
 
   return (
     <div className="app">
-      <header className="app__header">
-        <span className="app__title">Terminal Composer</span>
-        <span className="app__subtitle">
-          {instance ? `${instance.session.shell} · ${instance.session.cwd}` : "…"}
-        </span>
-      </header>
+      <Sidebar />
 
-      <main className="app__body">
-        {error ? (
-          <div className="app__error">Не удалось запустить shell: {error}</div>
-        ) : (
-          <TerminalView instance={instance} />
-        )}
-      </main>
+      <div className="app__main">
+        <header className="app__header">
+          <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
+          <span className="app__subtitle">
+            {active ? `${active.shell} · ${active.cwd}` : "…"}
+          </span>
+        </header>
 
-      <footer
-        className={[
-          "app__composer",
-          collapsed ? "app__composer--peek" : "",
-          animate ? "app__composer--animate" : "",
-        ]
-          .filter(Boolean)
-          .join(" ")}
-        style={{ height: collapsed ? PEEK_HEIGHT : height }}
-        title={collapsed ? "Открыть composer" : undefined}
-        onMouseDown={collapsed ? () => focusPane("composer") : undefined}
-      >
-        <div className="app__composer-inner" ref={contentRef}>
-          <Composer
-            onSubmit={handleSubmit}
-            onAbort={handleAbort}
-            onInterrupt={handleInterrupt}
-            disabled={!instance}
-          />
-        </div>
-      </footer>
+        <main className="app__body">
+          {error && <div className="app__error">Не удалось запустить shell: {error}</div>}
+          {sessions.map((session) => {
+            const instance = getInstance(session.id);
+            return (
+              instance && (
+                <TerminalView
+                  key={session.id}
+                  instance={instance}
+                  active={session.id === activeId}
+                />
+              )
+            );
+          })}
+        </main>
+
+        <footer
+          className={[
+            "app__composer",
+            collapsed ? "app__composer--peek" : "",
+            animate ? "app__composer--animate" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          style={{ height: collapsed ? PEEK_HEIGHT : height }}
+          title={collapsed ? "Открыть composer" : undefined}
+          onMouseDown={collapsed ? () => focusPane("composer") : undefined}
+        >
+          <div className="app__composer-inner" ref={contentRef}>
+            <Composer
+              onSubmit={handleSubmit}
+              onAbort={handleAbort}
+              onInterrupt={handleInterrupt}
+              disabled={!activeId}
+            />
+          </div>
+        </footer>
+      </div>
     </div>
   );
 }
