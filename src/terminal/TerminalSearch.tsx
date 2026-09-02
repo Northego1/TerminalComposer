@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getInstance, useSessionsStore } from "../app/sessionsStore";
+import { useT } from "../i18n";
 
 interface TerminalSearchProps {
   onClose: () => void;
@@ -10,6 +11,7 @@ interface TerminalSearchProps {
 export function TerminalSearch({ onClose }: TerminalSearchProps) {
   const activeId = useSessionsStore((state) => state.activeId);
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = useT();
   const [term, setTerm] = useState("");
   const [results, setResults] = useState({ index: -1, count: 0 });
 
@@ -67,7 +69,7 @@ export function TerminalSearch({ onClose }: TerminalSearchProps) {
           nothingFound ? " terminal-search__input--missing" : ""
         }`}
         value={term}
-        placeholder="Поиск по терминалу"
+        placeholder={t("search.placeholder")}
         spellCheck={false}
         onChange={(event) => {
           setTerm(event.target.value);
@@ -80,13 +82,13 @@ export function TerminalSearch({ onClose }: TerminalSearchProps) {
           ? ""
           : `${results.index >= 0 ? results.index + 1 : 0}/${results.count}`}
       </span>
-      <button type="button" onClick={() => find("previous")} title="Предыдущее (↑)">
+      <button type="button" onClick={() => find("previous")} title={t("search.previous")}>
         ↑
       </button>
-      <button type="button" onClick={() => find("next")} title="Следующее (↓)">
+      <button type="button" onClick={() => find("next")} title={t("search.next")}>
         ↓
       </button>
-      <button type="button" onClick={onClose} title="Закрыть (Esc)">
+      <button type="button" onClick={onClose} title={t("search.close")}>
         ×
       </button>
     </div>

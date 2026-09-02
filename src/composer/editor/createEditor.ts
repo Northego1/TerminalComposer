@@ -105,7 +105,8 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
  */
 export function composerExtensions(
   handlers: () => ComposerHandlers,
-  placeholder: string,
+  /** Read on every render, so it follows the interface language. */
+  placeholder: () => string,
 ) {
   return [
     Document,

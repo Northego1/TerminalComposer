@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { t } from "../i18n";
 import { TerminalInstance } from "../terminal/TerminalInstance";
 import { useSettingsStore } from "./settingsStore";
 
@@ -60,7 +61,7 @@ export const useSessionsStore = create<SessionsState>((set, get) => ({
           ...state.sessions,
           {
             id: instance.session.id,
-            name: spawn.name ?? `Терминал ${opened}`,
+            name: spawn.name ?? t("sidebar.terminalName", { n: opened }),
             cwd: instance.session.cwd,
             shell: instance.session.shell,
           },

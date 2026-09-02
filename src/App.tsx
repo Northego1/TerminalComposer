@@ -8,8 +8,10 @@ import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { Composer } from "./composer/Composer";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
+import { useViewStore } from "./app/viewStore";
 import { saveComposerState } from "./composer/state/drafts";
-import { SettingsDialog } from "./settings/SettingsDialog";
+import { useT } from "./i18n";
+import { SettingsView } from "./settings/SettingsView";
 import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
@@ -41,15 +43,12 @@ export default function App() {
   const settings = useSettingsStore((state) => state.settings);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
+  const view = useViewStore((state) => state.view);
   const [searching, setSearching] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const t = useT();
   useGlobalHotkeys({ openSearch: () => setSearching(true) });
 
-  // A ref survives StrictMode's double mount, so startup happens once.
-  const started = useRef(false);
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
     void start();
   }, []);
 
@@ -94,73 +93,98 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar onOpenSettings={() => setShowSettings(true)} />
+      <Sidebar />
 
       <div className="app__main">
-        <header className="app__header">
-          <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
-          <span className="app__subtitle">
-            {active ? `${active.shell} · ${active.cwd}` : "…"}
-          </span>
-        </header>
+        {view === "terminals" && (
+          <header className="app__header">
+            <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
+            <span className="app__subtitle">
+              {active ? `${active.shell} · ${active.cwd}` : "…"}
+            </span>
+          </header>
+        )}
 
         <main className="app__body">
-          {searching && (
-            <TerminalSearch
-              onClose={() => {
-                setSearching(false);
-                focusPane("terminal");
-              }}
-            />
-          )}
-          {error && <div className="app__error">Не удалось запустить shell: {error}</div>}
-          {sessions.map((session) => {
-            const instance = getInstance(session.id);
-            return (
-              instance && (
-                <TerminalView
-                  key={session.id}
-                  instance={instance}
-                  active={session.id === activeId}
-                />
-              )
-            );
-          })}
+          <div
+            className={`app__terminals${
+              view === "settings" ? " app__terminals--hidden" : ""
+            }`}
+          >
+            {searching && (
+              <TerminalSearch
+                onClose={() => {
+                  setSearching(false);
+                  focusPane("terminal");
+                }}
+              />
+            )}
+            {error && (
+              <div className="app__error">
+                {t("app.error.spawn")} {error}
+              </div>
+            )}
+            {sessions.map((session) => {
+              const instance = getInstance(session.id);
+              return (
+                instance && (
+                  <TerminalView
+                    key={session.id}
+                    instance={instance}
+                    active={session.id === activeId}
+                  />
+                )
+              );
+            })}
+          </div>
+
+          {view === "settings" && <SettingsView />}
         </main>
 
-        <footer
-          className={[
-            "app__composer",
-            collapsed ? "app__composer--peek" : "",
-            animate ? "app__composer--animate" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          style={{ height: collapsed ? PEEK_HEIGHT : height }}
-          title={collapsed ? "Открыть composer" : undefined}
-          onMouseDown={collapsed ? () => focusPane("composer") : undefined}
-        >
-          <div className="app__composer-inner" ref={contentRef}>
-            <Composer
-              onSubmit={handleSubmit}
-              onAbort={handleAbort}
-              onInterrupt={handleInterrupt}
-              disabled={!activeId}
-            />
-          </div>
-        </footer>
+        {view === "terminals" && (
+          <footer
+            className={[
+              "app__composer",
+              collapsed ? "app__composer--peek" : "",
+              animate ? "app__composer--animate" : "",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+            style={{ height: collapsed ? PEEK_HEIGHT : height }}
+            title={collapsed ? t("composer.expand") : undefined}
+            onMouseDown={collapsed ? () => focusPane("composer") : undefined}
+          >
+            <div className="app__composer-inner" ref={contentRef}>
+              <Composer
+                onSubmit={handleSubmit}
+                onAbort={handleAbort}
+                onInterrupt={handleInterrupt}
+                disabled={!activeId}
+              />
+            </div>
+          </footer>
+        )}
       </div>
 
-      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
     </div>
   );
 }
 
 /**
- * Startup: settings first, because terminals are created with them, then the
- * terminals that were open last time -- or a fresh one on a first run.
+ * Startup runs once per process, guarded outside React: StrictMode remounts the
+ * component and so does Fast Refresh, and each remount would otherwise open
+ * another set of terminals.
+ */
+let starting = false;
+
+/**
+ * Settings first, because terminals are created with them, then the terminals
+ * that were open last time -- or a fresh one on a first run.
  */
 async function start(): Promise<void> {
+  if (starting) return;
+  starting = true;
+
   await useSettingsStore.getState().load();
   applySettingsToDocument(useSettingsStore.getState().settings);
 

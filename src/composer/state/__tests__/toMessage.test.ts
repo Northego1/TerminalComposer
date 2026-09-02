@@ -12,7 +12,7 @@ const noHandlers = (): ComposerHandlers => ({
   interrupt: () => false,
 });
 
-const schema = getSchema(composerExtensions(noHandlers, ""));
+const schema = getSchema(composerExtensions(noHandlers, () => ""));
 
 const attachment = (kind: "image" | "file", path: string, name: string) => ({
   type: "attachment",

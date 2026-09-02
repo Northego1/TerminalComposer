@@ -1,16 +1,17 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
 import { useSessionsStore } from "../app/sessionsStore";
+import { useViewStore } from "../app/viewStore";
+import { useT } from "../i18n";
 
 /** Distance the pointer must travel before a press turns into a reorder. */
 const DRAG_THRESHOLD = 4;
 
-interface SidebarProps {
-  onOpenSettings: () => void;
-}
-
-/** The list of open terminals: opening, switching, renaming, reordering, closing. */
-export function Sidebar({ onOpenSettings }: SidebarProps) {
+/**
+ * The left rail: the open terminals, and settings as one more entry next to
+ * them rather than a dialog over everything.
+ */
+export function Sidebar() {
   const sessions = useSessionsStore((state) => state.sessions);
   const activeId = useSessionsStore((state) => state.activeId);
   const activate = useSessionsStore((state) => state.activate);
@@ -18,6 +19,9 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
   const close = useSessionsStore((state) => state.close);
   const rename = useSessionsStore((state) => state.rename);
   const reorder = useSessionsStore((state) => state.reorder);
+  const view = useViewStore((state) => state.view);
+  const show = useViewStore((state) => state.show);
+  const t = useT();
 
   const listRef = useRef<HTMLDivElement>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -86,7 +90,10 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               <button
                 type="button"
                 className="sidebar__select"
-                onClick={() => activate(session.id)}
+                onClick={() => {
+                  activate(session.id);
+                  show("terminals");
+                }}
                 onDoubleClick={() => setRenaming(session.id)}
                 title={`${session.shell} · ${session.cwd}`}
               >
@@ -97,7 +104,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
               type="button"
               className="sidebar__close"
               onClick={() => void close(session.id)}
-              title="Закрыть терминал"
+              title={t("sidebar.closeTerminal")}
             >
               ×
             </button>
@@ -108,7 +115,7 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
           type="button"
           className="sidebar__add"
           onClick={() => void open()}
-          title="Новый терминал (Ctrl+Shift+T)"
+          title={t("sidebar.newTerminal")}
         >
           +
         </button>
@@ -116,11 +123,12 @@ export function Sidebar({ onOpenSettings }: SidebarProps) {
 
       <button
         type="button"
-        className="sidebar__settings"
-        onClick={onOpenSettings}
-        title="Настройки"
+        className={`sidebar__settings${
+          view === "settings" ? " sidebar__settings--active" : ""
+        }`}
+        onClick={() => show("settings")}
       >
-        ⚙ Настройки
+        <span aria-hidden="true">⚙</span> {t("sidebar.settings")}
       </button>
     </aside>
   );

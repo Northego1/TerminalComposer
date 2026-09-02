@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
+import { detectLanguage, type Language } from "../i18n/language";
 import { readDocument, writeDocument } from "./persistence";
 import { applyTheme, type ThemeName } from "./theme";
 
 export interface Settings {
+  language: Language;
   theme: ThemeName;
   fontFamily: string;
   fontSize: number;
@@ -17,6 +19,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
+  language: "en",
   theme: "dark",
   fontFamily:
     'ui-monospace, "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", monospace',
@@ -39,8 +42,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   load: async () => {
     const stored = await readDocument<Partial<Settings>>("settings");
     // Unknown or missing fields fall back to the defaults, so an older file
-    // keeps working after a setting is added.
-    set({ settings: { ...DEFAULT_SETTINGS, ...stored } });
+    // keeps working after a setting is added. English is the base language;
+    // the system's is only a first-run suggestion.
+    set({
+      settings: {
+        ...DEFAULT_SETTINGS,
+        language: detectLanguage(),
+        ...stored,
+      },
+    });
   },
 
   update: (patch) => {

@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFocusStore } from "../app/focusStore";
 import { useSessionsStore } from "../app/sessionsStore";
 import { scheduleWorkspaceSave } from "../app/workspace";
+import { t as translate, useT } from "../i18n";
 import { isEmptyMessage, type Message } from "../message/types";
 import type { Attachment } from "../message/types";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
@@ -29,8 +30,6 @@ import { toMessage } from "./state/toMessage";
 /** How long after a submission Esc still means "take it back". */
 const UNDO_WINDOW_MS = 4000;
 
-const PLACEHOLDER = "Напишите сообщение или команду...";
-
 interface ComposerProps {
   onSubmit: (message: Message) => void;
   /** Asks the target to stop what the last submission started. */
@@ -53,6 +52,7 @@ export function Composer({
   disabled = false,
 }: ComposerProps) {
   const [undoable, setUndoable] = useState<Draft | null>(null);
+  const t = useT();
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
 
@@ -97,7 +97,9 @@ export function Composer({
   };
 
   const editor = useEditor({
-    extensions: composerExtensions(() => handlers.current, PLACEHOLDER),
+    extensions: composerExtensions(() => handlers.current, () =>
+      translate("composer.placeholder"),
+    ),
     editorProps: {
       attributes: { class: "composer__editor" },
       handlePaste: (view, event) => {
@@ -250,6 +252,11 @@ export function Composer({
     else editor.commands.blur();
   }, [pane, editor]);
 
+  // The placeholder is a decoration, so a language change has to ask for one.
+  useEffect(() => {
+    editor?.view.dispatch(editor.state.tr);
+  }, [editor, t]);
+
   useEffect(() => {
     editor?.setEditable(!disabled);
   }, [editor, disabled]);
@@ -280,10 +287,10 @@ export function Composer({
           className={`composer__hint${undoable !== null || over ? " composer__hint--undo" : ""}`}
         >
           {over
-            ? "Отпустите — файлы станут вложениями"
+            ? t("composer.hint.drop")
             : undoable !== null
-              ? "Esc — отменить отправку и вернуть текст"
-              : "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть"}
+              ? t("composer.hint.undo")
+              : t("composer.hint")}
         </span>
         <button
           type="button"
@@ -291,7 +298,7 @@ export function Composer({
           onClick={() => handlers.current.submit()}
           disabled={disabled || empty}
         >
-          Enter →
+          {t("composer.send")}
         </button>
       </div>
     </div>

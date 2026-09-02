@@ -3,6 +3,7 @@ import { SearchAddon } from "@xterm/addon-search";
 import { Terminal } from "@xterm/xterm";
 
 import type { Settings } from "../app/settingsStore";
+import { t } from "../i18n";
 import { THEMES } from "../app/theme";
 import type {
   PtyWrite,
@@ -89,7 +90,7 @@ export class TerminalInstance {
 
     const unlistenOutput = await pty.onOutput(id, (data) => this.term.write(data));
     const unlistenExit = await pty.onExit(id, () => {
-      this.term.write("\r\n\x1b[90m[process exited]\x1b[0m\r\n");
+      this.term.write(`\r\n\x1b[90m${t("terminal.exited")}\x1b[0m\r\n`);
     });
     this.disposers.push(unlistenOutput, unlistenExit);
 

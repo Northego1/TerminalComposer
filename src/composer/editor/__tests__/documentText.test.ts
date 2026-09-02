@@ -24,7 +24,7 @@ const noHandlers = (): ComposerHandlers => ({
   interrupt: () => false,
 });
 
-const schema = getSchema(composerExtensions(noHandlers, ""));
+const schema = getSchema(composerExtensions(noHandlers, () => ""));
 
 const stateFor = (text: string, caret?: number) => {
   const doc = schema.nodeFromJSON(textToContent(text));

@@ -1,6 +1,8 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 
+import { useT } from "../../i18n";
+
 /**
  * How an attachment looks inside the editor: an inline chip with a preview for
  * images and a name for everything else. It is a single atom as far as the
@@ -8,6 +10,7 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
  * whole -- an attachment is a structured element, never text with markers.
  */
 export function AttachmentChip({ node, deleteNode, selected }: NodeViewProps) {
+  const t = useT();
   const { kind, path, name, size } = node.attrs as {
     kind: "image" | "file";
     path: string;
@@ -36,7 +39,7 @@ export function AttachmentChip({ node, deleteNode, selected }: NodeViewProps) {
         type="button"
         className="attachment__remove"
         onClick={deleteNode}
-        title="Удалить вложение"
+        title={t("attachment.remove")}
         tabIndex={-1}
       >
         ×
