@@ -6,27 +6,23 @@
 //! OSC 133 markers, which is an existing standard rather than an invention of
 //! ours.
 //!
-//! The files are shipped inside the binary and written out at startup, and the
-//! shell is pointed at them with `ZDOTDIR`. The user's own files are loaded from
-//! there, so nothing in their home directory is touched.
+//! The file is shipped inside the binary and written out at startup, and the
+//! shell is pointed at it with `ZDOTDIR`. It loads the user's own `.zshenv`,
+//! hands `ZDOTDIR` straight back and gets out of the way, so the rest of their
+//! configuration is read exactly as it normally would be and nothing in their
+//! home directory is touched.
 
 use std::path::PathBuf;
 
 const ZSHENV: &str = include_str!("../shell/zsh/.zshenv");
-const ZPROFILE: &str = include_str!("../shell/zsh/.zprofile");
-const ZSHRC: &str = include_str!("../shell/zsh/.zshrc");
 
 /// Writes the integration out and returns the directory to use as `ZDOTDIR`.
 pub fn prepare_zsh() -> Option<PathBuf> {
     let directory = integration_dir().join("zsh");
     std::fs::create_dir_all(&directory).ok()?;
-    for (name, contents) in [
-        (".zshenv", ZSHENV),
-        (".zprofile", ZPROFILE),
-        (".zshrc", ZSHRC),
-    ] {
-        std::fs::write(directory.join(name), contents).ok()?;
-    }
+    // Only .zshenv is shadowed; it hands ZDOTDIR back and lets zsh read the
+    // rest of the user's startup files itself.
+    std::fs::write(directory.join(".zshenv"), ZSHENV).ok()?;
     Some(directory)
 }
 
