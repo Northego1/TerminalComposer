@@ -205,6 +205,10 @@ export class TerminalInstance {
  * Every match is bright blue; the one you are on is bright orange. The two are
  * complementary, so the active match is unmistakable among the others, and both
  * stay readable under the terminal's light foreground.
+ *
+ * Deferred: the addon also takes `regex`, `caseSensitive` and `wholeWord`, so
+ * pattern search is these options plus the toggles to drive them -- no new
+ * search machinery.
  */
 const SEARCH_OPTIONS = {
   decorations: {
