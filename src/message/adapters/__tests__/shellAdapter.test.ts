@@ -56,6 +56,14 @@ describe("shellAdapter", () => {
   });
 });
 
+describe("shellAdapter.abort", () => {
+  it("interrupts the target and then clears its input line", () => {
+    const writes = shellAdapter.abort();
+    expect(writes.map((write) => write.data)).toEqual(["\x1b", "\x15"]);
+    expect(writes[1].delayBefore).toBeGreaterThan(0);
+  });
+});
+
 describe("shellQuote", () => {
   it("leaves safe paths untouched", () => {
     expect(shellQuote("/tmp/screenshot.png")).toBe("/tmp/screenshot.png");

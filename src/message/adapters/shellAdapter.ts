@@ -5,6 +5,8 @@ const PASTE_START = "\x1b[200~";
 const PASTE_END = "\x1b[201~";
 const SUBMIT = "\r";
 const ESCAPE = "\x1b";
+/** Ctrl+U -- "discard the current input line" in readline and Ink alike. */
+const KILL_LINE = "\x15";
 
 /**
  * How long to wait after a paste before sending the submitting CR.
@@ -15,6 +17,13 @@ const ESCAPE = "\x1b";
  * has settled makes the CR a keystroke again.
  */
 const PASTE_SETTLE_MS = 120;
+
+/**
+ * How long to give the target to react to the interrupt before clearing its
+ * input line -- an agent needs a moment to restore the prompt it was told to
+ * abandon.
+ */
+const ABORT_SETTLE_MS = 150;
 
 /**
  * Default adapter: writes the message into a PTY the way a terminal writes a
@@ -52,8 +61,15 @@ export const shellAdapter: Adapter = {
   // ESC as an unfinished meta sequence and drops it after KEYTIMEOUT. We
   // deliberately do not send Ctrl+C -- an accidental Esc must never kill a
   // running process.
+  //
+  // Interrupting is only half of it: an agent that puts the interrupted prompt
+  // back into its own input box would leave the text in two places at once, so
+  // the target's input line is cleared afterwards.
   abort(): PtyWrite[] {
-    return [{ data: ESCAPE }];
+    return [
+      { data: ESCAPE },
+      { data: KILL_LINE, delayBefore: ABORT_SETTLE_MS },
+    ];
   },
 };
 

@@ -39,14 +39,14 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
     return () => clearTimeout(timer);
   }, [undoable]);
 
-  const replaceValue = (text: string, caret: "start" | "end") => {
+  /** Recalled text lands with the caret at the end, ready to be edited. */
+  const replaceValue = (text: string) => {
     setValue(text);
     setUndoable(null);
     requestAnimationFrame(() => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-      const position = caret === "start" ? 0 : text.length;
-      textarea.setSelectionRange(position, position);
+      textarea.setSelectionRange(text.length, text.length);
     });
   };
 
@@ -90,7 +90,7 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
       if (!recalled) return;
       event.preventDefault();
       setHistory(recalled.history);
-      replaceValue(recalled.text, "start");
+      replaceValue(recalled.text);
       return;
     }
 
@@ -99,7 +99,7 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
       if (!recalled) return;
       event.preventDefault();
       setHistory(recalled.history);
-      replaceValue(recalled.text, "end");
+      replaceValue(recalled.text);
     }
   };
 
