@@ -38,7 +38,23 @@ if [[ -o interactive ]] && [[ -z "$TERMINAL_COMPOSER_MARKS" ]]; then
     _terminal_composer_mark "C"              # a command started running
   }
 
+  # What this shell can run: its aliases, its functions and everything on
+  # $PATH. Only the shell knows the first two, and they are exactly what a
+  # completion list built anywhere else would be missing.
+  #
+  # Written once, at the first prompt: by then the user's configuration has
+  # finished defining them, which it had not when this file was read.
+  _terminal_composer_dump_commands() {
+    [[ -n "$TERMINAL_COMPOSER_COMMANDS" ]] || return
+    rehash
+    print -l -- ${(k)aliases} ${(k)functions} ${(k)commands} ${(k)builtins} |
+      grep -v '^_' > "$TERMINAL_COMPOSER_COMMANDS" 2>/dev/null
+    add-zsh-hook -d precmd _terminal_composer_dump_commands
+    unfunction _terminal_composer_dump_commands
+  }
+
   autoload -Uz add-zsh-hook
   add-zsh-hook precmd _terminal_composer_precmd
   add-zsh-hook preexec _terminal_composer_preexec
+  add-zsh-hook precmd _terminal_composer_dump_commands
 fi

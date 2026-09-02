@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
-import type { CompletionState } from "./usePathCompletion";
+import type { CompletionState } from "./useCompletion";
 
 interface CompletionListProps {
   state: CompletionState;
@@ -31,7 +31,7 @@ export function CompletionList({ state, onChoose }: CompletionListProps) {
       style={{ left: state.anchor.left, top: state.anchor.top }}
     >
       {state.items.map((item, index) => (
-        <li key={item.path} ref={index === state.selected ? selectedRef : undefined}>
+        <li key={item.label} ref={index === state.selected ? selectedRef : undefined}>
           <button
             type="button"
             className={`completion__item${
@@ -44,10 +44,9 @@ export function CompletionList({ state, onChoose }: CompletionListProps) {
             }}
           >
             <span className="completion__icon" aria-hidden="true">
-              {item.isDir ? "▸" : "·"}
+              {item.kind === "dir" ? "▸" : item.kind === "command" ? "$" : "·"}
             </span>
-            {item.name}
-            {item.isDir && "/"}
+            {item.label}
           </button>
         </li>
       ))}

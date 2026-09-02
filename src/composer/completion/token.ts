@@ -12,6 +12,8 @@ export interface Token {
   /** Document position of the token's first character. */
   from: number;
   to: number;
+  /** Nothing but whitespace precedes it on its line. */
+  first: boolean;
 }
 
 /** Path-shaped enough to offer completions without being asked. */
@@ -26,7 +28,14 @@ export function tokenAtCaret(state: EditorState): Token | null {
   const match = /\S+$/.exec(line);
   if (!match) return null;
 
-  return { text: match[0], from: from - match[0].length, to: from };
+  return {
+    text: match[0],
+    from: from - match[0].length,
+    to: from,
+    // The first word of a line is a command; everything after it is an
+    // argument, and arguments are paths far more often than not.
+    first: line.slice(0, match.index).trim() === "",
+  };
 }
 
 /** Whether this token should bring up completions on its own. */

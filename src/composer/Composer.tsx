@@ -12,7 +12,7 @@ import { SessionContextLine, useSessionContext } from "./SessionContextLine";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
 import { useFileDrop } from "./attachments/useFileDrop";
 import { CompletionList } from "./completion/CompletionList";
-import { usePathCompletion } from "./completion/usePathCompletion";
+import { useCompletion } from "./completion/useCompletion";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
 import { docToText, needsFullComposer } from "./editor/documentText";
@@ -109,7 +109,7 @@ export function Composer({
       .run();
   };
 
-  const completionRef = useRef<ReturnType<typeof usePathCompletion> | null>(null);
+  const completionRef = useRef<ReturnType<typeof useCompletion> | null>(null);
 
   const editor = useEditor({
     extensions: composerExtensions(() => handlers.current, () =>
@@ -158,7 +158,9 @@ export function Composer({
 
   editorRef.current = editor;
 
-  const completion = usePathCompletion(editor);
+  // While the composer is a command line, commands complete on their own;
+  // once it is a message, completion waits to be asked.
+  const completion = useCompletion(editor, !full);
   completionRef.current = completion;
 
   handlers.current = {

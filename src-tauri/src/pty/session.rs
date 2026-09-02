@@ -48,6 +48,10 @@ impl PtySession {
                     std::env::var("ZDOTDIR").unwrap_or_else(|_| home_dir()),
                 );
                 cmd.env("ZDOTDIR", zdotdir);
+                cmd.env(
+                    "TERMINAL_COMPOSER_COMMANDS",
+                    crate::shell::commands_file(&id),
+                );
             }
         }
 

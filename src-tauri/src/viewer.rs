@@ -157,6 +157,29 @@ pub fn complete_path(
     matches
 }
 
+/// What the session's shell can run, matching a prefix.
+///
+/// The list is written by the shell itself at its first prompt, because only it
+/// knows its aliases and functions -- the part any list assembled elsewhere
+/// would be missing.
+#[tauri::command]
+pub fn complete_command(id: String, prefix: String) -> Vec<String> {
+    let Ok(contents) = std::fs::read_to_string(crate::shell::commands_file(&id)) else {
+        return Vec::new();
+    };
+
+    let lower = prefix.to_lowercase();
+    let mut names: Vec<String> = contents
+        .lines()
+        .filter(|name| !name.is_empty() && name.to_lowercase().starts_with(&lower))
+        .map(str::to_string)
+        .collect();
+    names.sort();
+    names.dedup();
+    names.truncate(COMPLETION_LIMIT);
+    names
+}
+
 /// Splits a typed token into the directory to look in and the prefix to match.
 fn split_token(cwd: &str, token: &str) -> (PathBuf, String) {
     let expanded = shellexpand_home(token);

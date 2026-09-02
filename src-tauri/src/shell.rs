@@ -37,6 +37,13 @@ pub fn shell_name(shell: &str) -> Option<String> {
         .map(|name| name.to_string_lossy().into_owned())
 }
 
+/// Where a session's shell writes the list of what it can run.
+pub fn commands_file(session_id: &str) -> PathBuf {
+    let directory = integration_dir().join("commands");
+    let _ = std::fs::create_dir_all(&directory);
+    directory.join(session_id)
+}
+
 fn integration_dir() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .map(PathBuf::from)

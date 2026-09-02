@@ -31,6 +31,7 @@ pub fn run() {
             viewer::read_file,
             viewer::resolve_paths,
             viewer::complete_path,
+            viewer::complete_command,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
