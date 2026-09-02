@@ -60,7 +60,7 @@ body {
 .sidebar__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 6px;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -176,7 +176,6 @@ body {
 }
 
 .sidebar__add {
-  margin-top: 2px;
   padding: 8px 10px;
   border: none;
   border-radius: 8px;
