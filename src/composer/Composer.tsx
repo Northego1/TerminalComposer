@@ -43,6 +43,8 @@ interface ComposerProps {
   onInterrupt: () => void;
   /** Sends a key to a full-screen program. True when it was taken. */
   onForwardKey: (sequence: string) => boolean;
+  /** A full-screen program owns the terminal, so navigation keys go to it. */
+  passthrough?: boolean;
   disabled?: boolean;
 }
 
@@ -57,6 +59,7 @@ export function Composer({
   onAbort,
   onInterrupt,
   onForwardKey,
+  passthrough = false,
   disabled = false,
 }: ComposerProps) {
   const [undoable, setUndoable] = useState<Draft | null>(null);
@@ -348,7 +351,9 @@ export function Composer({
                 ? t("composer.hint.drop")
                 : undoable !== null
                   ? t("composer.hint.undo")
-                  : t("composer.hint")}
+                  : passthrough
+                    ? t("composer.hint.passthrough")
+                    : t("composer.hint")}
           </span>
           <button
             type="button"

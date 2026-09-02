@@ -72,13 +72,22 @@ export default function App() {
     else instance.blur();
   }, [pane, activeId]);
 
-  // A program launched from the composer takes the screen a moment after it was
-  // sent, and hands it back when it exits. The keyboard follows it both ways.
+  /**
+   * Whether a full-screen program owns the active terminal.
+   *
+   * Kept in state rather than read on demand, because two things depend on it:
+   * the keyboard follows such a program in and out, and the interface says so
+   * -- guessing where the keys are going is exactly what makes this confusing.
+   */
+  const [fullScreen, setFullScreen] = useState(false);
+
   useEffect(() => {
     const instance = getInstance(activeId);
-    return instance?.onFullScreenChange((fullScreen) =>
-      focusPane(fullScreen ? "terminal" : "composer"),
-    );
+    setFullScreen(instance?.isFullScreen ?? false);
+    return instance?.onFullScreenChange((active) => {
+      setFullScreen(active);
+      focusPane(active ? "terminal" : "composer");
+    });
   }, [activeId, focusPane]);
 
   const handleSubmit = useCallback(
@@ -127,6 +136,9 @@ export default function App() {
           <span className="app__subtitle">
             {active?.kind === "terminal" ? `${active.shell} · ${active.cwd}` : ""}
           </span>
+          {onTerminal && fullScreen && (
+            <span className="app__badge">{t("app.fullScreen")}</span>
+          )}
         </header>
 
         <main className="app__body">
@@ -198,6 +210,7 @@ export default function App() {
               onAbort={handleAbort}
               onInterrupt={handleInterrupt}
               onForwardKey={handleForwardKey}
+              passthrough={fullScreen}
               disabled={!onTerminal}
             />
           </div>

@@ -227,6 +227,15 @@ body {
   white-space: nowrap;
 }
 
+.app__badge {
+  padding: 2px 7px;
+  border: 1px solid var(--border-active);
+  border-radius: 20px;
+  color: var(--accent);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
 .app__body {
   position: relative;
   flex: 1;

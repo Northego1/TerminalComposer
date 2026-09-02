@@ -7,6 +7,7 @@
  */
 export const EN = {
   "app.error.spawn": "Could not start the shell:",
+  "app.fullScreen": "full screen",
 
   "sidebar.newTerminal": "New terminal (Ctrl+Shift+T)",
   "sidebar.closeTab": "Close tab",
@@ -20,6 +21,8 @@ export const EN = {
   "composer.hint.undo": "Esc — take the message back",
   "composer.hint.drop": "Release to attach the files",
   "composer.hint.secret": "A password is being asked for — type it in the terminal",
+  "composer.hint.passthrough":
+    "Arrows, Tab and Enter go to the program · Ctrl+↑ — history",
   "composer.send": "Enter →",
   "composer.expand": "Open composer",
 
@@ -62,6 +65,7 @@ export type StringKey = keyof typeof EN;
 
 export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
+  "app.fullScreen": "полноэкранная программа",
 
   "sidebar.newTerminal": "Новый терминал (Ctrl+Shift+T)",
   "sidebar.closeTab": "Закрыть вкладку",
@@ -75,6 +79,8 @@ export const RU: Record<StringKey, string> = {
   "composer.hint.undo": "Esc — отменить отправку и вернуть текст",
   "composer.hint.drop": "Отпустите — файлы станут вложениями",
   "composer.hint.secret": "Запрошен пароль — набирайте его в терминале",
+  "composer.hint.passthrough":
+    "Стрелки, Tab и Enter уходят в программу · Ctrl+↑ — история",
   "composer.send": "Enter →",
   "composer.expand": "Открыть composer",
 
