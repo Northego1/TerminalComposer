@@ -47,6 +47,10 @@ interface TabsState {
   tabs: Tab[];
   activeId: string | null;
   error: string | null;
+  /** The file each tab is looking at, if any. */
+  viewers: Record<string, string>;
+  openFile: (path: string) => void;
+  closeFile: (tabId: string) => void;
   openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
   openSettings: (name?: string) => void;
   restore: (
@@ -64,6 +68,19 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   tabs: [],
   activeId: null,
   error: null,
+  viewers: {},
+
+  /** Opens a file next to the terminal that named it. */
+  openFile: (path) =>
+    set((state) =>
+      state.activeId ? { viewers: { ...state.viewers, [state.activeId]: path } } : state,
+    ),
+
+  closeFile: (tabId) =>
+    set((state) => {
+      const { [tabId]: _closed, ...viewers } = state.viewers;
+      return { viewers };
+    }),
 
   openTerminal: async (spawn = {}) => {
     const settings = useSettingsStore.getState().settings;
@@ -84,6 +101,19 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         ],
         activeId: instance.session.id,
         error: null,
+  viewers: {},
+
+  /** Opens a file next to the terminal that named it. */
+  openFile: (path) =>
+    set((state) =>
+      state.activeId ? { viewers: { ...state.viewers, [state.activeId]: path } } : state,
+    ),
+
+  closeFile: (tabId) =>
+    set((state) => {
+      const { [tabId]: _closed, ...viewers } = state.viewers;
+      return { viewers };
+    }),
       }));
       return instance.session.id;
     } catch (cause) {
@@ -135,7 +165,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         state.activeId === id
           ? (tabs[Math.min(index, tabs.length - 1)]?.id ?? null)
           : state.activeId;
-      return { tabs, activeId };
+      const { [id]: _gone, ...viewers } = state.viewers;
+      return { tabs, activeId, viewers };
     });
 
     await instance?.dispose();

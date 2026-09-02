@@ -243,9 +243,152 @@ body {
 
 .app__body {
   position: relative;
+  display: flex;
   flex: 1;
   min-height: 0;
   background: var(--bg-panel);
+}
+
+.app__terminals {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- file viewer ---- */
+
+.viewer {
+  display: flex;
+  flex-direction: column;
+  width: 44%;
+  min-width: 280px;
+  flex: none;
+  border-left: 1px solid var(--border);
+  background: var(--bg-panel);
+}
+
+.viewer__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px 7px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+.viewer__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer__header button {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.viewer__header button:hover {
+  background: var(--border);
+  color: var(--text);
+}
+
+.viewer__body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 14px;
+}
+
+.viewer__text {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.viewer__image {
+  max-width: 100%;
+}
+
+.viewer__note {
+  margin: 8px 0 0;
+  color: var(--text-dim);
+  font-size: 11.5px;
+}
+
+.viewer__note--error {
+  color: #ff9a9a;
+}
+
+.viewer__markdown {
+  font-size: 13.5px;
+  line-height: 1.6;
+  word-break: break-word;
+}
+
+.viewer__markdown h1,
+.viewer__markdown h2,
+.viewer__markdown h3 {
+  margin: 18px 0 8px;
+  font-size: 15px;
+}
+
+.viewer__markdown h1 {
+  font-size: 18px;
+  margin-top: 0;
+}
+
+.viewer__markdown pre {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg);
+  overflow-x: auto;
+  font-size: 12.5px;
+}
+
+.viewer__markdown code {
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+}
+
+.viewer__markdown :not(pre) > code {
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--bg);
+}
+
+.viewer__markdown a {
+  color: var(--accent);
+}
+
+.viewer__markdown blockquote {
+  margin: 10px 0;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
+  color: var(--text-dim);
+}
+
+.viewer__markdown table {
+  border-collapse: collapse;
+}
+
+.viewer__markdown th,
+.viewer__markdown td {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
 }
 
 /* Terminals stay mounted while settings are open, so nothing is lost. */
@@ -576,10 +719,20 @@ body {
 
 .attachment__name {
   max-width: 220px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 12px;
+}
+
+.attachment__name:hover {
+  color: var(--accent);
 }
 
 .attachment__size {

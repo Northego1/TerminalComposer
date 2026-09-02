@@ -15,6 +15,7 @@ import { SettingsView } from "./settings/SettingsView";
 import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
+import { FileViewer } from "./viewer/FileViewer";
 
 /**
  * How much of the composer stays visible while the terminal is active: just the
@@ -66,6 +67,13 @@ export default function App() {
   // Anything that changes the tabs is worth remembering for next time.
   useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
 
+  // A file name clicked in any terminal opens next to it.
+  useEffect(() => {
+    forEachInstance((instance) => {
+      instance.openFile = (path) => useTabsStore.getState().openFile(path);
+    });
+  }, [tabs]);
+
   /**
    * Who owns the keyboard, decided by what the shell reports about itself.
    *
@@ -75,6 +83,10 @@ export default function App() {
    * integration the shell says nothing and neither does this.
    */
   const [shellState, setShellState] = useState<ShellState>("unknown");
+  const viewers = useTabsStore((state) => state.viewers);
+  const closeFile = useTabsStore((state) => state.closeFile);
+  /** The file the active tab is looking at, if any. */
+  const viewing = activeId ? viewers[activeId] : undefined;
 
   useEffect(() => {
     const instance = getInstance(activeId);
@@ -151,8 +163,11 @@ export default function App() {
             </div>
           )}
 
-          {/* Every tab stays mounted; only the active one is shown. */}
-          {tabs.map((tab) => {
+          {/* The terminals and the settings pages share this column; the
+              viewer, when there is one, takes the other. */}
+          <div className="app__terminals">
+            {/* Every tab stays mounted; only the active one is shown. */}
+            {tabs.map((tab) => {
             const isActive = tab.id === activeId;
             if (tab.kind === "settings") {
               return (
@@ -165,12 +180,17 @@ export default function App() {
               );
             }
             const instance = getInstance(tab.id);
-            return (
-              instance && (
-                <TerminalView key={tab.id} instance={instance} active={isActive} />
-              )
-            );
-          })}
+              return (
+                instance && (
+                  <TerminalView key={tab.id} instance={instance} active={isActive} />
+                )
+              );
+            })}
+          </div>
+
+          {viewing && activeId && onTerminal && (
+            <FileViewer path={viewing} onClose={() => closeFile(activeId)} />
+          )}
         </main>
 
         {collapsed && onTerminal && (

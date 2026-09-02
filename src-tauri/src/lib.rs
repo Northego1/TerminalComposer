@@ -9,6 +9,7 @@ mod pty;
 mod shell;
 mod state;
 mod vcs;
+mod viewer;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -27,6 +28,8 @@ pub fn run() {
             clipboard::file_info,
             state::state_read,
             state::state_write,
+            viewer::read_file,
+            viewer::resolve_paths,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

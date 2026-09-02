@@ -30,6 +30,11 @@ impl PtyRegistry {
         Ok(f(session))
     }
 
+    /// Where a session's shell is now, for resolving relative paths.
+    pub fn session_cwd(&self, id: &str) -> Option<String> {
+        self.with(id, |session| session.context().cwd).ok()
+    }
+
     pub fn close_all(&self) {
         let Ok(mut sessions) = self.sessions.lock() else {
             return;

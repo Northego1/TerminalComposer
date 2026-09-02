@@ -34,6 +34,10 @@ export const EN = {
 
   "terminal.exited": "[process exited]",
 
+  "viewer.close": "Close (the file stays where it is)",
+  "viewer.binary": "Not a text file.",
+  "viewer.truncated": "Shown from the beginning; the file is longer.",
+
   "settings.title": "Settings",
   "settings.tab.general": "General",
   "settings.tab.terminal": "Terminal",
@@ -93,6 +97,10 @@ export const RU: Record<StringKey, string> = {
   "search.close": "Закрыть (Esc)",
 
   "terminal.exited": "[процесс завершён]",
+
+  "viewer.close": "Закрыть (файл остаётся на месте)",
+  "viewer.binary": "Это не текстовый файл.",
+  "viewer.truncated": "Показано начало — файл длиннее.",
 
   "settings.title": "Настройки",
   "settings.tab.general": "Общее",

@@ -9,6 +9,8 @@ import type {
   PtyWrite,
   TargetCapabilities,
 } from "../message/adapters/Adapter";
+import { findCandidates } from "../viewer/paths";
+import { resolvePaths } from "../viewer/fileClient";
 import * as pty from "./ptyClient";
 
 /** What the shell reports about itself, when it reports anything. */
@@ -54,6 +56,7 @@ export class TerminalInstance {
     this.term.loadAddon(this.searchAddon);
     this.term.attachCustomKeyEventHandler((event) => this.handleKey(event));
     this.watchShellState();
+    this.linkPaths();
     this.term.open(this.element);
   }
 
@@ -223,6 +226,52 @@ export class TerminalInstance {
     this.term.input(data);
     return false;
   }
+
+  /**
+   * Makes file names in the output clickable.
+   *
+   * Which words are worth offering is decided by the filesystem, not by their
+   * shape: a whole line's candidates are checked in one call, and only the ones
+   * that name a file that exists become links. The path is resolved against the
+   * shell's own working directory, so `src/App.tsx` means what it means there.
+   */
+  private linkPaths(): void {
+    this.term.registerLinkProvider({
+      provideLinks: (line, callback) => {
+        const text = this.term.buffer.active
+          .getLine(line - 1)
+          ?.translateToString(true);
+        const candidates = text ? findCandidates(text) : [];
+        if (!candidates.length) return callback(undefined);
+
+        void resolvePaths(
+          this.session.id,
+          candidates.map((candidate) => candidate.text),
+        )
+          .then((resolved) => {
+            const links = candidates.flatMap((candidate, index) => {
+              const path = resolved[index];
+              if (!path) return [];
+              return [
+                {
+                  text: candidate.text,
+                  range: {
+                    start: { x: candidate.start + 1, y: line },
+                    end: { x: candidate.end, y: line },
+                  },
+                  activate: () => this.openFile?.(path),
+                },
+              ];
+            });
+            callback(links.length ? links : undefined);
+          })
+          .catch(() => callback(undefined));
+      },
+    });
+  }
+
+  /** Where a clicked file name should be opened. Set by the application. */
+  openFile?: (path: string) => void;
 
   /**
    * What the shell says it is doing.

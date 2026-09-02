@@ -3,6 +3,7 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { useTabsStore } from "../../app/tabsStore";
 import { useT } from "../../i18n";
 
 /** A file the clipboard had no name for: `paste-<uuid>.png`. */
@@ -25,6 +26,7 @@ export function AttachmentChip({ node, editor, getPos, deleteNode, selected }: N
     size: number | null;
   };
   const t = useT();
+  const openFile = useTabsStore((state) => state.openFile);
   const chipRef = useRef<HTMLSpanElement>(null);
   const [preview, setPreview] = useState<{ left: number; top: number } | null>(null);
 
@@ -62,9 +64,14 @@ export function AttachmentChip({ node, editor, getPos, deleteNode, selected }: N
           ▤
         </span>
       )}
-      <span className="attachment__name" title={path}>
+      <button
+        type="button"
+        className="attachment__name"
+        title={path}
+        onClick={() => openFile(path)}
+      >
         {label}
-      </span>
+      </button>
       {size ? <span className="attachment__size">{formatSize(size)}</span> : null}
       <button
         type="button"
