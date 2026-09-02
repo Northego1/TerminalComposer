@@ -426,6 +426,11 @@ body {
   border-color: var(--border-active);
 }
 
+/* While a password is being asked for, the field is visibly not the place. */
+.composer--secret {
+  opacity: 0.5;
+}
+
 .composer--drop {
   border-color: var(--accent);
   border-style: dashed;

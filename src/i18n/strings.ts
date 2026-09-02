@@ -19,6 +19,7 @@ export const EN = {
     "Enter — send · Shift+Enter — new line · ↑↓ — history · Ctrl+C — reset · Esc — collapse",
   "composer.hint.undo": "Esc — take the message back",
   "composer.hint.drop": "Release to attach the files",
+  "composer.hint.secret": "A password is being asked for — type it in the terminal",
   "composer.send": "Enter →",
   "composer.expand": "Open composer",
 
@@ -73,6 +74,7 @@ export const RU: Record<StringKey, string> = {
     "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть",
   "composer.hint.undo": "Esc — отменить отправку и вернуть текст",
   "composer.hint.drop": "Отпустите — файлы станут вложениями",
+  "composer.hint.secret": "Запрошен пароль — набирайте его в терминале",
   "composer.send": "Enter →",
   "composer.expand": "Открыть composer",
 

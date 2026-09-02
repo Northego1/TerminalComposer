@@ -12,7 +12,11 @@ import { SessionContextLine, useSessionContext } from "./SessionContextLine";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
 import { useFileDrop } from "./attachments/useFileDrop";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
-import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
+import {
+  composerExtensions,
+  TERMINAL_ESCAPE,
+  type ComposerHandlers,
+} from "./editor/createEditor";
 import { docToText, needsFullComposer } from "./editor/documentText";
 import {
   loadComposerState,
@@ -37,6 +41,8 @@ interface ComposerProps {
   onAbort: () => void;
   /** Ctrl+C: interrupt the target outright. */
   onInterrupt: () => void;
+  /** Sends a key to a full-screen program. True when it was taken. */
+  onForwardKey: (sequence: string) => boolean;
   disabled?: boolean;
 }
 
@@ -50,6 +56,7 @@ export function Composer({
   onSubmit,
   onAbort,
   onInterrupt,
+  onForwardKey,
   disabled = false,
 }: ComposerProps) {
   const [undoable, setUndoable] = useState<Draft | null>(null);
@@ -67,9 +74,9 @@ export function Composer({
   // lives in refs and stays current without rebuilding the editor.
   const history = useRef(EMPTY_HISTORY);
   const undoableRef = useRef<Draft | null>(null);
-  const callbacks = useRef({ onSubmit, onAbort, onInterrupt });
+  const callbacks = useRef({ onSubmit, onAbort, onInterrupt, onForwardKey });
   useEffect(() => {
-    callbacks.current = { onSubmit, onAbort, onInterrupt };
+    callbacks.current = { onSubmit, onAbort, onInterrupt, onForwardKey };
   });
 
   const rememberUndoable = (draft: Draft | null) => {
@@ -86,6 +93,7 @@ export function Composer({
     recallPrevious: () => false,
     recallNext: () => false,
     interrupt: () => false,
+    forward: () => false,
   });
 
   // Paste handling needs the editor from inside options built before it
@@ -164,10 +172,12 @@ export function Composer({
     },
 
     // Esc right after a submission puts the text back and interrupts the
-    // target; otherwise it just leaves the composer.
+    // target; then, if a program is waiting for it, Esc belongs to that
+    // program; otherwise it just leaves the composer.
     cancel: () => {
       const restore = undoableRef.current;
       if (restore === null) {
+        if (handlers.current.forward(TERMINAL_ESCAPE)) return true;
         focusPane("terminal");
         return true;
       }
@@ -192,6 +202,13 @@ export function Composer({
       history.current = recalled.history;
       replaceContent(recalled.draft);
       return true;
+    },
+
+    // Only an empty field forwards: with text in it, these keys are moving
+    // through that text.
+    forward: (sequence) => {
+      if (!editor?.isEmpty) return false;
+      return callbacks.current.onForwardKey(sequence);
     },
 
     // Clearing goes through the editor, so Ctrl+Z brings the draft back.
@@ -268,9 +285,21 @@ export function Composer({
     editor?.view.dispatch(editor.state.tr);
   }, [editor, t]);
 
+  /**
+   * A program is asking for a password.
+   *
+   * The composer must not be where it is typed: it echoes what is written and
+   * keeps a draft on disk. So it steps aside and hands the keyboard over.
+   */
+  const secret = sessionContext?.secretInput ?? false;
+
   useEffect(() => {
-    editor?.setEditable(!disabled);
-  }, [editor, disabled]);
+    if (secret) focusPane("terminal");
+  }, [secret, focusPane]);
+
+  useEffect(() => {
+    editor?.setEditable(!disabled && !secret);
+  }, [editor, disabled, secret]);
 
   useEffect(() => {
     if (undoable === null) return;
@@ -286,6 +315,7 @@ export function Composer({
       className={[
         "composer",
         full ? "composer--full" : "composer--flat",
+        secret ? "composer--secret" : "",
         pane === "composer" ? "composer--active" : "",
         over ? "composer--drop" : "",
       ]
@@ -308,13 +338,17 @@ export function Composer({
       {full && (
         <div className="composer__footer">
           <span
-            className={`composer__hint${undoable !== null || over ? " composer__hint--undo" : ""}`}
+            className={`composer__hint${
+              undoable !== null || over || secret ? " composer__hint--undo" : ""
+            }`}
           >
-            {over
-              ? t("composer.hint.drop")
-              : undoable !== null
-                ? t("composer.hint.undo")
-                : t("composer.hint")}
+            {secret
+              ? t("composer.hint.secret")
+              : over
+                ? t("composer.hint.drop")
+                : undoable !== null
+                  ? t("composer.hint.undo")
+                  : t("composer.hint")}
           </span>
           <button
             type="button"

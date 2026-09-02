@@ -230,6 +230,12 @@ export class TerminalInstance {
     return this.term.buffer.active.type === "alternate";
   }
 
+  /** Sends a key sequence as though it had been pressed in the terminal. */
+  sendKey(sequence: string): void {
+    this.term.input(sequence);
+    this.term.scrollToBottom();
+  }
+
   /** Fires when a program takes the whole terminal, or gives it back. */
   onFullScreenChange(handler: (fullScreen: boolean) => void): () => void {
     const subscription = this.term.buffer.onBufferChange((buffer) =>

@@ -84,7 +84,8 @@ impl PtySession {
             .map_err(|e| format!("failed to resize pty: {e}"))
     }
 
-    /// Where the shell is now, and what is checked out there.
+    /// Where the shell is now, what is checked out there, and whether something
+    /// is currently reading a secret.
     ///
     /// The cwd comes from the shell's own `/proc` symlink, so it follows every
     /// `cd` -- guessing it from terminal output would only ever be a guess.
@@ -95,7 +96,32 @@ impl PtySession {
             .map(|path| path.to_string_lossy().into_owned())
             .unwrap_or_else(|| self.cwd.clone());
         let branch = crate::vcs::branch_at(std::path::Path::new(&cwd));
-        SessionContext { cwd, branch }
+
+        SessionContext {
+            cwd,
+            branch,
+            secret_input: self.reads_secret(),
+        }
+    }
+
+    /// Whether a program other than the shell has switched terminal echo off.
+    ///
+    /// That is what `sudo`, `ssh` and `git` do to read a password, and the
+    /// kernel knows it because the program asked for it -- no guessing and no
+    /// list of known programs. The shell's own line editor keeps echo off too,
+    /// which is why this only counts when the terminal's foreground group is
+    /// something the shell launched.
+    fn reads_secret(&self) -> bool {
+        let Some(shell) = self.pid else {
+            return false;
+        };
+        let Some(foreground) = self.master.process_group_leader() else {
+            return false;
+        };
+        if foreground as u32 == shell {
+            return false;
+        }
+        self.master.as_raw_fd().is_some_and(|fd| echo_off(fd))
     }
 
     pub fn close(mut self) {
@@ -114,6 +140,22 @@ impl PtySession {
 pub struct SessionContext {
     pub cwd: String,
     pub branch: Option<String>,
+    /// A program is reading something it does not want echoed -- a password.
+    pub secret_input: bool,
+}
+
+#[cfg(unix)]
+fn echo_off(fd: std::os::fd::RawFd) -> bool {
+    let mut termios: libc::termios = unsafe { std::mem::zeroed() };
+    if unsafe { libc::tcgetattr(fd, &mut termios) } != 0 {
+        return false;
+    }
+    termios.c_lflag & libc::ECHO == 0
+}
+
+#[cfg(not(unix))]
+fn echo_off(_fd: std::os::fd::RawFd) -> bool {
+    false
 }
 
 fn pty_size(cols: u16, rows: u16) -> PtySize {

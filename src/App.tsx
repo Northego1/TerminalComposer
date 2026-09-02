@@ -86,13 +86,23 @@ export default function App() {
       const instance = getInstance(useTabsStore.getState().activeId);
       if (!instance || isEmptyMessage(message)) return;
       void instance.submit(getAdapter().serialize(message, instance.capabilities));
-      // A full-screen program answers with its own interface -- a picker, a
-      // confirmation, a diff to accept -- so the keyboard has to follow the
-      // message there.
-      if (instance.isFullScreen) focusPane("terminal");
     },
-    [focusPane],
+    [],
   );
+
+  /**
+   * Keys the composer has no use for, handed to the program drawing the
+   * terminal. There is no way to know that a program is waiting for an answer
+   * -- terminals have no such signal -- so this does not try: while a
+   * full-screen program owns the screen and the field is empty, keys that
+   * cannot mean text can only have been meant for it.
+   */
+  const handleForwardKey = useCallback((sequence: string) => {
+    const instance = getInstance(useTabsStore.getState().activeId);
+    if (!instance?.isFullScreen) return false;
+    instance.sendKey(sequence);
+    return true;
+  }, []);
 
   const handleAbort = useCallback(() => {
     getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().abort());
@@ -187,6 +197,7 @@ export default function App() {
               onSubmit={handleSubmit}
               onAbort={handleAbort}
               onInterrupt={handleInterrupt}
+              onForwardKey={handleForwardKey}
               disabled={!onTerminal}
             />
           </div>

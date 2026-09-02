@@ -33,6 +33,8 @@ export function resize(id: string, cols: number, rows: number): Promise<void> {
 export interface SessionContext {
   cwd: string;
   branch: string | null;
+  /** A program is reading a password: nothing typed here may be echoed. */
+  secretInput: boolean;
 }
 
 /** Where the shell is now and what is checked out there. */
