@@ -308,17 +308,29 @@ body {
 }
 
 /*
- * While collapsed the composer shows a handle rather than a slice of the text:
- * a cut-off line reads as a rendering fault, an arrow reads as "there is more
- * here".
+ * While collapsed the composer keeps peeking out, but empty: a cut-off line of
+ * text reads as a rendering fault, while the bare top edge of the box plus a
+ * handle above it reads as "there is more here".
+ *
+ * The box is pushed down with a transform rather than padding, because the
+ * expanded height is measured from this element and padding would corrupt it.
  */
 .app__composer--peek .app__composer-inner {
+  transform: translateY(36px);
+}
+
+.app__composer--peek .composer__surface,
+.app__composer--peek .composer__footer {
   visibility: hidden;
+}
+
+.app__composer--animate .app__composer-inner {
+  transition: transform 160ms ease;
 }
 
 .composer-peek {
   position: absolute;
-  top: 8px;
+  top: 4px;
   left: 50%;
   z-index: 1;
   display: flex;

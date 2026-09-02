@@ -15,8 +15,11 @@ import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
 
-/** How much of the composer stays visible while the terminal is active. */
-const PEEK_HEIGHT = 44;
+/**
+ * How much of the composer stays visible while the terminal is active: room for
+ * the handle, and under it the top edge of the composer box itself.
+ */
+const PEEK_HEIGHT = 62;
 const SLIDE_MS = 160;
 
 /**
