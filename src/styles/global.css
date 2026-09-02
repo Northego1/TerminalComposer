@@ -140,6 +140,12 @@ body {
   border-color: var(--border-active);
 }
 
+.composer--drop {
+  border-color: var(--accent);
+  border-style: dashed;
+  background: #171a22;
+}
+
 /*
  * The composer grows with its content and stops here; past this the editor
  * scrolls instead of eating the terminal.

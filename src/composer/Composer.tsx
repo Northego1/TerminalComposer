@@ -5,7 +5,8 @@ import { useEffect, useRef, useState } from "react";
 import { useFocusStore } from "../app/focusStore";
 import { isEmptyMessage, type Message } from "../message/types";
 import type { Attachment } from "../message/types";
-import { attachmentsFromClipboard } from "./attachments/ingest";
+import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
+import { useFileDrop } from "./attachments/useFileDrop";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
 import { docToText } from "./editor/documentText";
@@ -187,6 +188,17 @@ export function Composer({
     rememberUndoable(null);
   }
 
+  // Files dropped anywhere over the composer become attachments. A drag
+  // entering the window opens the composer, so the target is not a 44px strip.
+  const dropTarget = useRef<HTMLDivElement>(null);
+  const { dragging, over } = useFileDrop(dropTarget, (paths) => {
+    void attachmentsFromPaths(paths).then(insertAttachments);
+  });
+
+  useEffect(() => {
+    if (dragging) focusPane("composer");
+  }, [dragging, focusPane]);
+
   useEffect(() => {
     if (!editor) return;
     if (pane === "composer") editor.commands.focus();
@@ -207,17 +219,26 @@ export function Composer({
 
   return (
     <div
-      className={`composer${pane === "composer" ? " composer--active" : ""}`}
+      ref={dropTarget}
+      className={[
+        "composer",
+        pane === "composer" ? "composer--active" : "",
+        over ? "composer--drop" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       onMouseDown={() => focusPane("composer")}
     >
       <EditorContent editor={editor} className="composer__surface" />
       <div className="composer__footer">
         <span
-          className={`composer__hint${undoable !== null ? " composer__hint--undo" : ""}`}
+          className={`composer__hint${undoable !== null || over ? " composer__hint--undo" : ""}`}
         >
-          {undoable !== null
-            ? "Esc — отменить отправку и вернуть текст"
-            : "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть"}
+          {over
+            ? "Отпустите — файлы станут вложениями"
+            : undoable !== null
+              ? "Esc — отменить отправку и вернуть текст"
+              : "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть"}
         </span>
         <button
           type="button"
