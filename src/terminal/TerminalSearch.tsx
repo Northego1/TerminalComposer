@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
+import { keepFocus } from "../app/keepFocus";
 import { getInstance, useTabsStore } from "../app/tabsStore";
 import { useT } from "../i18n";
 
@@ -88,13 +89,23 @@ export function TerminalSearch({ onClose }: TerminalSearchProps) {
           ? ""
           : `${results.index >= 0 ? results.index + 1 : 0}/${results.count}`}
       </span>
-      <button type="button" onClick={() => find("previous")} title={t("search.previous")}>
+      <button
+        type="button"
+        {...keepFocus}
+        onClick={() => find("previous")}
+        title={t("search.previous")}
+      >
         ↑
       </button>
-      <button type="button" onClick={() => find("next")} title={t("search.next")}>
+      <button
+        type="button"
+        {...keepFocus}
+        onClick={() => find("next")}
+        title={t("search.next")}
+      >
         ↓
       </button>
-      <button type="button" onClick={onClose} title={t("search.close")}>
+      <button type="button" {...keepFocus} onClick={onClose} title={t("search.close")}>
         ×
       </button>
     </div>

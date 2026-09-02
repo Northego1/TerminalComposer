@@ -1,5 +1,6 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
+import { keepFocus } from "../app/keepFocus";
 import { useTabsStore, type Tab } from "../app/tabsStore";
 import { useT, type Translate } from "../i18n";
 
@@ -95,6 +96,7 @@ export function Sidebar() {
         <button
           type="button"
           className="sidebar__add"
+          {...keepFocus}
           onClick={() => void openTerminal()}
           title={t("sidebar.newTerminal")}
         >
@@ -109,6 +111,7 @@ export function Sidebar() {
       <button
         type="button"
         className="sidebar__settings"
+        {...keepFocus}
         onClick={() => openSettings()}
         title={t("sidebar.newSettings")}
       >
@@ -194,6 +197,7 @@ function TabRow({
       <button
         type="button"
         className="sidebar__close"
+        {...keepFocus}
         onClick={() => void close(tab.id)}
         title={t("sidebar.closeTab")}
       >

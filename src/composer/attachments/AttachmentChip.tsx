@@ -3,6 +3,7 @@ import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { keepFocus } from "../../app/keepFocus";
 import { useTabsStore } from "../../app/tabsStore";
 import { useT } from "../../i18n";
 
@@ -67,6 +68,7 @@ export function AttachmentChip({ node, editor, getPos, deleteNode, selected }: N
       <button
         type="button"
         className="attachment__name"
+        {...keepFocus}
         title={path}
         onClick={() => openFile(path)}
       >
@@ -76,6 +78,7 @@ export function AttachmentChip({ node, editor, getPos, deleteNode, selected }: N
       <button
         type="button"
         className="attachment__remove"
+        {...keepFocus}
         onClick={deleteNode}
         title={t("attachment.remove")}
         tabIndex={-1}

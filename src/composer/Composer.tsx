@@ -3,6 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
+import { keepFocus } from "../app/keepFocus";
 import { getInstance, useTabsStore } from "../app/tabsStore";
 import { scheduleWorkspaceSave } from "../app/workspace";
 import { t as translate, useT } from "../i18n";
@@ -377,6 +378,7 @@ export function Composer({
           <button
             type="button"
             className={`composer__pin${pinned ? " composer__pin--on" : ""}`}
+            {...keepFocus}
             onClick={togglePinned}
             title={t("composer.pin")}
             aria-pressed={pinned}
@@ -386,6 +388,7 @@ export function Composer({
           <button
             type="button"
             className="composer__send"
+            {...keepFocus}
             onClick={() => handlers.current.submit()}
             disabled={disabled || empty}
           >

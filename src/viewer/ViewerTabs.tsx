@@ -1,3 +1,4 @@
+import { keepFocus } from "../app/keepFocus";
 import type { ViewerFiles } from "../app/tabsStore";
 import { useT } from "../i18n";
 
@@ -21,6 +22,7 @@ export function ViewerTabs({ terminalName, files, onShow, onClose }: ViewerTabsP
       <button
         type="button"
         className={`viewer-tabs__tab${files.active === null ? " viewer-tabs__tab--active" : ""}`}
+        {...keepFocus}
         onClick={() => onShow(null)}
       >
         <span className="viewer-tabs__icon" aria-hidden="true">
@@ -41,12 +43,18 @@ export function ViewerTabs({ terminalName, files, onShow, onClose }: ViewerTabsP
             onClose(path);
           }}
         >
-          <button type="button" onClick={() => onShow(path)} title={path}>
+          <button
+            type="button"
+            {...keepFocus}
+            onClick={() => onShow(path)}
+            title={path}
+          >
             {basename(path)}
           </button>
           <button
             type="button"
             className="viewer-tabs__close"
+            {...keepFocus}
             onClick={() => onClose(path)}
             title={t("viewer.close")}
           >
