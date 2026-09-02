@@ -2,6 +2,8 @@ import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { Terminal } from "@xterm/xterm";
 
+import type { Settings } from "../app/settingsStore";
+import { THEMES } from "../app/theme";
 import type {
   PtyWrite,
   TargetCapabilities,
@@ -28,23 +30,17 @@ export class TerminalInstance {
   private writing = false;
   private lastSize = { cols: 0, rows: 0 };
 
-  private constructor(readonly session: pty.PtySessionInfo) {
+  private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
     this.element.className = "terminal-surface";
 
     this.term = new Terminal({
-      fontFamily:
-        'ui-monospace, "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", monospace',
-      fontSize: 13,
+      fontFamily: settings.fontFamily,
+      fontSize: settings.fontSize,
+      scrollback: settings.scrollback,
+      theme: THEMES[settings.theme].terminal,
       cursorBlink: true,
-      scrollback: 10_000,
       allowProposedApi: true,
-      theme: {
-        background: "#101014",
-        foreground: "#d7d7dc",
-        cursor: "#8ab4f8",
-        selectionBackground: "#2f3a4d",
-      },
     });
     this.fitAddon = new FitAddon();
     this.term.loadAddon(this.fitAddon);
@@ -53,12 +49,39 @@ export class TerminalInstance {
     this.term.open(this.element);
   }
 
-  static async create(cwd?: string): Promise<TerminalInstance> {
+  static async create(
+    settings: Settings,
+    spawn: { cwd?: string; shell?: string } = {},
+  ): Promise<TerminalInstance> {
     // Spawn with a plausible size; the first fit() corrects it immediately.
-    const session = await pty.spawn({ cwd, cols: 80, rows: 24 });
-    const instance = new TerminalInstance(session);
+    const session = await pty.spawn({
+      cwd: spawn.cwd || settings.cwd || undefined,
+      shell: spawn.shell || settings.shell || undefined,
+      cols: 80,
+      rows: 24,
+    });
+    const instance = new TerminalInstance(session, settings);
     await instance.bind();
     return instance;
+  }
+
+  /** Applies changed settings to a terminal that is already running. */
+  applySettings(settings: Settings): void {
+    this.term.options.fontFamily = settings.fontFamily;
+    this.term.options.fontSize = settings.fontSize;
+    this.term.options.scrollback = settings.scrollback;
+    this.term.options.theme = THEMES[settings.theme].terminal;
+    this.fit();
+  }
+
+  /** The selected text, or an empty string. */
+  selection(): string {
+    return this.term.getSelection();
+  }
+
+  /** Pastes text as the terminal itself would, bracketed paste included. */
+  paste(text: string): void {
+    this.term.paste(text);
   }
 
   private async bind(): Promise<void> {

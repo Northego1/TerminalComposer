@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
-import { getInstance, useSessionsStore } from "./app/sessionsStore";
+import { forEachInstance, getInstance, useSessionsStore } from "./app/sessionsStore";
+import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
+import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { Composer } from "./composer/Composer";
 import { getAdapter } from "./message/adapters/registry";
 import { isEmptyMessage, type Message } from "./message/types";
+import { saveComposerState } from "./composer/state/drafts";
+import { SettingsDialog } from "./settings/SettingsDialog";
 import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
@@ -34,19 +38,29 @@ export default function App() {
   const sessions = useSessionsStore((state) => state.sessions);
   const activeId = useSessionsStore((state) => state.activeId);
   const error = useSessionsStore((state) => state.error);
-  const open = useSessionsStore((state) => state.open);
+  const settings = useSettingsStore((state) => state.settings);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
   const [searching, setSearching] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   useGlobalHotkeys({ openSearch: () => setSearching(true) });
 
-  // A ref survives StrictMode's double mount, so the first terminal opens once.
+  // A ref survives StrictMode's double mount, so startup happens once.
   const started = useRef(false);
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    void open();
-  }, [open]);
+    void start();
+  }, []);
+
+  // Settings apply to the interface and to every terminal already running.
+  useEffect(() => {
+    applySettingsToDocument(settings);
+    forEachInstance((instance) => instance.applySettings(settings));
+  }, [settings]);
+
+  // Anything that changes the terminal list is worth remembering for next time.
+  useEffect(() => useSessionsStore.subscribe(scheduleWorkspaceSave), []);
 
   useEffect(() => {
     const instance = getInstance(activeId);
@@ -80,7 +94,7 @@ export default function App() {
 
   return (
     <div className="app">
-      <Sidebar />
+      <Sidebar onOpenSettings={() => setShowSettings(true)} />
 
       <div className="app__main">
         <header className="app__header">
@@ -136,8 +150,33 @@ export default function App() {
           </div>
         </footer>
       </div>
+
+      {showSettings && <SettingsDialog onClose={() => setShowSettings(false)} />}
     </div>
   );
+}
+
+/**
+ * Startup: settings first, because terminals are created with them, then the
+ * terminals that were open last time -- or a fresh one on a first run.
+ */
+async function start(): Promise<void> {
+  await useSettingsStore.getState().load();
+  applySettingsToDocument(useSettingsStore.getState().settings);
+
+  const workspace = await readWorkspace();
+  const sessions = useSessionsStore.getState();
+
+  if (workspace?.sessions.length) {
+    await sessions.restore(
+      workspace.sessions.map(({ name, cwd }) => ({ name, cwd })),
+      workspace.activeIndex,
+      (id, index) => saveComposerState(id, workspace.sessions[index].composer),
+    );
+    return;
+  }
+
+  await sessions.open();
 }
 
 /**

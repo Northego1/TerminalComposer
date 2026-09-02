@@ -13,6 +13,7 @@ export interface PtySessionInfo {
 
 export interface SpawnOptions {
   cwd?: string;
+  shell?: string;
   cols: number;
   rows: number;
 }

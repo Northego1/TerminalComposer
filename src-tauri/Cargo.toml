@@ -21,6 +21,7 @@ portable-pty = "0.9"
 uuid = { version = "1", features = ["v4"] }
 wl-clipboard-rs = "0.9"
 x11-clipboard = "0.9"
+tauri-plugin-clipboard-manager = "2.3.3"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

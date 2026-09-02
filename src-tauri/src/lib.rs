@@ -6,12 +6,14 @@
 
 mod clipboard;
 mod pty;
+mod state;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     clipboard::clear_scratch();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_clipboard_manager::init())
         .manage(pty::PtyRegistry::default())
         .invoke_handler(tauri::generate_handler![
             pty::pty_spawn,
@@ -20,6 +22,8 @@ pub fn run() {
             pty::pty_close,
             clipboard::clipboard_read_attachments,
             clipboard::file_info,
+            state::state_read,
+            state::state_write,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

@@ -45,6 +45,8 @@ impl PtyRegistry {
 pub struct SpawnOptions {
     /// Working directory for the shell. Defaults to the user's home directory.
     pub cwd: Option<String>,
+    /// Shell to run. Defaults to `$SHELL`.
+    pub shell: Option<String>,
     pub cols: u16,
     pub rows: u16,
 }

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
 import { useSessionsStore } from "../app/sessionsStore";
+import { scheduleWorkspaceSave } from "../app/workspace";
 import { isEmptyMessage, type Message } from "../message/types";
 import type { Attachment } from "../message/types";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
@@ -69,6 +70,9 @@ export function Composer({
     setUndoable(draft);
   };
 
+  /** Which session's state the editor currently holds. */
+  const loadedId = useRef<string | null>(null);
+
   const handlers = useRef<ComposerHandlers>({
     submit: () => false,
     cancel: () => false,
@@ -121,7 +125,16 @@ export function Composer({
       },
     },
     onFocus: () => focusPane("composer"),
-    onUpdate: () => rememberUndoable(null),
+    onUpdate: ({ editor: updated }) => {
+      rememberUndoable(null);
+      // Keeping the session's draft current on every edit is what lets both
+      // switching sessions and quitting the app pick it up unchanged.
+      saveComposerState(loadedId.current, {
+        doc: updated.getJSON(),
+        history: history.current,
+      });
+      scheduleWorkspaceSave();
+    },
   });
 
   editorRef.current = editor;
@@ -209,7 +222,6 @@ export function Composer({
   // belongs to the session that is open, and comes back when it is again.
   const sessions = useSessionsStore((state) => state.sessions);
   const activeId = useSessionsStore((state) => state.activeId);
-  const loadedId = useRef<string | null>(null);
 
   useEffect(() => {
     if (!editor || loadedId.current === activeId) return;

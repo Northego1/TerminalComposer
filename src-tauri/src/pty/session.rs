@@ -19,7 +19,11 @@ pub struct PtySession {
 
 impl PtySession {
     pub fn spawn(app: AppHandle, options: SpawnOptions) -> Result<Self, String> {
-        let shell = user_shell();
+        let shell = options
+            .shell
+            .clone()
+            .filter(|shell| !shell.is_empty())
+            .unwrap_or_else(user_shell);
         let cwd = options
             .cwd
             .filter(|c| !c.is_empty())
