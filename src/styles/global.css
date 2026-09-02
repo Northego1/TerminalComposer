@@ -37,6 +37,7 @@ body {
 }
 
 .app__main {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -310,31 +311,24 @@ body {
 }
 
 /*
- * While collapsed the composer keeps peeking out, but empty: a cut-off line of
- * text reads as a rendering fault, while the bare top edge of the box plus a
+ * While collapsed only the top edge of the composer box shows, and it shows
+ * empty: a cut-off line of text reads as a rendering fault, a bare edge with a
  * handle above it reads as "there is more here".
- *
- * The box is pushed down with a transform rather than padding, because the
- * expanded height is measured from this element and padding would corrupt it.
  */
-.app__composer--peek .app__composer-inner {
-  transform: translateY(36px);
-}
-
 .app__composer--peek .composer__surface,
 .app__composer--peek .composer__footer {
   visibility: hidden;
 }
 
-.app__composer--animate .app__composer-inner {
-  transition: transform 160ms ease;
-}
-
+/*
+ * The handle floats over the terminal, so it is kept faint until pointed at --
+ * an opaque button here would blank out a line of output.
+ */
 .composer-peek {
   position: absolute;
-  top: 4px;
   left: 50%;
-  z-index: 1;
+  z-index: 2;
+  opacity: 0.4;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -350,11 +344,13 @@ body {
   line-height: 1;
   cursor: pointer;
   transition:
+    opacity 120ms ease,
     border-color 120ms ease,
     color 120ms ease;
 }
 
 .composer-peek:hover {
+  opacity: 1;
   border-color: var(--border-active);
   color: var(--accent);
 }

@@ -16,10 +16,13 @@ import { TerminalSearch } from "./terminal/TerminalSearch";
 import { TerminalView } from "./terminal/TerminalView";
 
 /**
- * How much of the composer stays visible while the terminal is active: room for
- * the handle, and under it the top edge of the composer box itself.
+ * How much of the composer stays visible while the terminal is active: just the
+ * top edge of its box, so the terminal keeps almost all the room.
  */
-const PEEK_HEIGHT = 62;
+const PEEK_HEIGHT = 20;
+
+/** How far above that edge the handle floats. */
+const HANDLE_GAP = 6;
 const SLIDE_MS = 160;
 
 /**
@@ -137,6 +140,19 @@ export default function App() {
           })}
         </main>
 
+        {collapsed && onTerminal && (
+          <button
+            type="button"
+            className="composer-peek"
+            style={{ bottom: PEEK_HEIGHT + HANDLE_GAP }}
+            onClick={() => focusPane("composer")}
+            title={t("composer.expand")}
+            aria-label={t("composer.expand")}
+          >
+            ↑
+          </button>
+        )}
+
         <footer
           className={[
             "app__composer",
@@ -150,17 +166,6 @@ export default function App() {
           title={collapsed ? t("composer.expand") : undefined}
           onMouseDown={collapsed ? () => focusPane("composer") : undefined}
         >
-          {collapsed && (
-            <button
-              type="button"
-              className="composer-peek"
-              onClick={() => focusPane("composer")}
-              title={t("composer.expand")}
-              aria-label={t("composer.expand")}
-            >
-              ↑
-            </button>
-          )}
           <div className="app__composer-inner" ref={contentRef}>
             <Composer
               onSubmit={handleSubmit}
