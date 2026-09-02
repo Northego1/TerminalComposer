@@ -178,6 +178,13 @@ body {
 .terminal-view {
   height: 100%;
   padding: 8px 4px 8px 10px;
+  /*
+   * Its own stacking context. xterm.js is positioned but does not create one,
+   * so its search decorations (which carry their own z-index) would otherwise
+   * compete with the search box and paint over it.
+   */
+  position: relative;
+  z-index: 0;
 }
 
 /* Hidden, not unmounted -- that is what preserves scrollback and running
@@ -409,7 +416,7 @@ body {
   position: absolute;
   top: 8px;
   right: 14px;
-  z-index: 2;
+  z-index: 10;
   display: flex;
   align-items: center;
   gap: 2px;
