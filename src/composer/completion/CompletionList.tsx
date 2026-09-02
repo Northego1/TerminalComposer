@@ -3,6 +3,14 @@ import { createPortal } from "react-dom";
 
 import type { CompletionState } from "./useCompletion";
 
+const ICONS: Record<string, string> = {
+  command: "$",
+  subcommand: "»",
+  option: "-",
+  dir: "▸",
+  file: "·",
+};
+
 interface CompletionListProps {
   state: CompletionState;
   onChoose: (index: number) => void;
@@ -44,9 +52,12 @@ export function CompletionList({ state, onChoose }: CompletionListProps) {
             }}
           >
             <span className="completion__icon" aria-hidden="true">
-              {item.kind === "dir" ? "▸" : item.kind === "command" ? "$" : "·"}
+              {ICONS[item.kind]}
             </span>
-            {item.label}
+            <span className="completion__label">{item.label}</span>
+            {item.description && (
+              <span className="completion__description">{item.description}</span>
+            )}
           </button>
         </li>
       ))}

@@ -14,6 +14,8 @@ export interface Token {
   to: number;
   /** Nothing but whitespace precedes it on its line. */
   first: boolean;
+  /** The whole line up to the caret -- what command this is, and its words. */
+  line: string;
 }
 
 /** Path-shaped enough to offer completions without being asked. */
@@ -35,6 +37,7 @@ export function tokenAtCaret(state: EditorState): Token | null {
     // The first word of a line is a command; everything after it is an
     // argument, and arguments are paths far more often than not.
     first: line.slice(0, match.index).trim() === "",
+    line,
   };
 }
 

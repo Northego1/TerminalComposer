@@ -1076,7 +1076,7 @@ button.viewer-tabs__tab {
   padding: 4px;
   list-style: none;
   min-width: 220px;
-  max-width: 380px;
+  max-width: 520px;
   max-height: 240px;
   overflow-y: auto;
   transform: translateY(calc(-100% - 8px));
@@ -1108,5 +1108,22 @@ button.viewer-tabs__tab {
 }
 
 .completion__icon {
+  flex: none;
+  width: 10px;
   color: var(--text-dim);
+}
+
+.completion__label {
+  flex: none;
+}
+
+/* Present but never at the label's expense: it is cut first. */
+.completion__description {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: 11.5px;
 }
