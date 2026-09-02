@@ -151,7 +151,16 @@ export default function App() {
       tabs.setAgentState(sessionId, state);
       if (sessionId !== tabs.activeId) return;
       suggestPane(state === "waiting" ? "composer" : "terminal");
-      note(`pane now ${useFocusStore.getState().pane}`);
+      // After React has rendered and the effects have run: where the keyboard
+      // actually ended up, which is the only thing that matters.
+      setTimeout(() => {
+        const active = document.activeElement;
+        note(
+          `pane now ${useFocusStore.getState().pane}, focus on ${
+            active ? `${active.tagName}.${active.className || "-"}`.slice(0, 60) : "nothing"
+          }`,
+        );
+      }, 250);
     });
     return () => void unlisten.then((stop) => stop());
   }, [suggestPane]);
