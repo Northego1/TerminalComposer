@@ -4,12 +4,17 @@ import { EditorState } from "@tiptap/pm/state";
 import { describe, expect, it } from "vitest";
 
 import { composerExtensions, type ComposerHandlers } from "../createEditor";
-import {
-  docToText,
-  onFirstLine,
-  onLastLine,
-  textToContent,
-} from "../documentText";
+import { docToText, onFirstLine, onLastLine } from "../documentText";
+
+/** One paragraph per line -- the shape the editor produces for plain text. */
+const textToContent = (text: string) => ({
+  type: "doc",
+  content: text.split("\n").map((line) =>
+    line
+      ? { type: "paragraph", content: [{ type: "text", text: line }] }
+      : { type: "paragraph" },
+  ),
+});
 
 const noHandlers = (): ComposerHandlers => ({
   submit: () => false,

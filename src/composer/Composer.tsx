@@ -8,8 +8,14 @@ import type { Attachment } from "../message/types";
 import { attachmentsFromClipboard } from "./attachments/ingest";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
-import { docToText, textToContent } from "./editor/documentText";
-import { EMPTY_HISTORY, next, previous, remember } from "./state/history";
+import { docToText } from "./editor/documentText";
+import {
+  EMPTY_HISTORY,
+  next,
+  previous,
+  remember,
+  type Draft,
+} from "./state/history";
 import { toMessage } from "./state/toMessage";
 
 /** How long after a submission Esc still means "take it back". */
@@ -38,22 +44,22 @@ export function Composer({
   onInterrupt,
   disabled = false,
 }: ComposerProps) {
-  const [undoable, setUndoable] = useState<string | null>(null);
+  const [undoable, setUndoable] = useState<Draft | null>(null);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
 
   // Keyboard handlers run outside React's render, so everything they touch
   // lives in refs and stays current without rebuilding the editor.
   const history = useRef(EMPTY_HISTORY);
-  const undoableRef = useRef<string | null>(null);
+  const undoableRef = useRef<Draft | null>(null);
   const callbacks = useRef({ onSubmit, onAbort, onInterrupt });
   useEffect(() => {
     callbacks.current = { onSubmit, onAbort, onInterrupt };
   });
 
-  const rememberUndoable = (text: string | null) => {
-    undoableRef.current = text;
-    setUndoable(text);
+  const rememberUndoable = (draft: Draft | null) => {
+    undoableRef.current = draft;
+    setUndoable(draft);
   };
 
   const handlers = useRef<ComposerHandlers>({
@@ -67,6 +73,8 @@ export function Composer({
   // Paste handling needs the editor from inside options built before it
   // exists, so it goes through a ref.
   const editorRef = useRef<Editor | null>(null);
+  /** Guards the text fallback below from re-entering the paste handler. */
+  const repasting = useRef(false);
 
   const insertAttachments = (attachments: Attachment[]) => {
     if (!attachments.length) return;
@@ -81,12 +89,27 @@ export function Composer({
     extensions: composerExtensions(() => handlers.current, PLACEHOLDER),
     editorProps: {
       attributes: { class: "composer__editor" },
-      handlePaste: (_view, event) => {
-        if (!needsNativeClipboard(event)) return false;
+      handlePaste: (view, event) => {
+        if (repasting.current) return false;
+        if (!mayCarryFiles(event)) return false;
+
         // The webview cannot tell us where a pasted file lives, so the native
-        // side is asked instead. Consuming the event keeps the fallback (a
-        // path pasted as plain text) from landing as well.
-        void attachmentsFromClipboard().then(insertAttachments);
+        // side is asked instead. The event is consumed while that answer is in
+        // flight; if it turns out there were no files after all, the text is
+        // pasted the way ProseMirror would have done it.
+        const text = event.clipboardData?.getData("text/plain") ?? "";
+        void attachmentsFromClipboard()
+          .catch(() => [])
+          .then((attachments) => {
+            if (attachments.length) return insertAttachments(attachments);
+            if (!text) return;
+            repasting.current = true;
+            try {
+              view.pasteText(text);
+            } finally {
+              repasting.current = false;
+            }
+          });
         return true;
       },
     },
@@ -102,11 +125,11 @@ export function Composer({
       const message = toMessage(editor.state.doc);
       if (isEmptyMessage(message)) return true;
 
-      const text = docToText(editor.state.doc);
+      const sent = currentDraft();
       callbacks.current.onSubmit(message);
-      history.current = remember(history.current, text);
+      history.current = remember(history.current, sent);
       editor.commands.clearContent(true);
-      rememberUndoable(text);
+      rememberUndoable(sent);
       return true;
     },
 
@@ -119,18 +142,16 @@ export function Composer({
         return true;
       }
       callbacks.current.onAbort();
-      editor?.commands.setContent(textToContent(restore));
-      editor?.commands.focus("end");
-      rememberUndoable(null);
+      replaceContent(restore);
       return true;
     },
 
     recallPrevious: () => {
       if (!editor) return false;
-      const recalled = previous(history.current, docToText(editor.state.doc));
+      const recalled = previous(history.current, currentDraft());
       if (!recalled) return false;
       history.current = recalled.history;
-      replaceContent(recalled.text);
+      replaceContent(recalled.draft);
       return true;
     },
 
@@ -139,7 +160,7 @@ export function Composer({
       const recalled = next(history.current);
       if (!recalled) return false;
       history.current = recalled.history;
-      replaceContent(recalled.text);
+      replaceContent(recalled.draft);
       return true;
     },
 
@@ -151,9 +172,17 @@ export function Composer({
     },
   };
 
-  /** Recalled text lands with the caret at the end, ready to be edited. */
-  function replaceContent(text: string) {
-    editor?.commands.setContent(textToContent(text));
+  /** The editor document as a draft: what history and undo store. */
+  function currentDraft(): Draft {
+    return {
+      doc: editor?.getJSON() ?? EMPTY_HISTORY.draft.doc,
+      text: editor ? docToText(editor.state.doc) : "",
+    };
+  }
+
+  /** Restored content lands with the caret at the end, ready to be edited. */
+  function replaceContent(draft: Draft) {
+    editor?.commands.setContent(draft.doc);
     editor?.commands.focus("end");
     rememberUndoable(null);
   }
@@ -204,18 +233,36 @@ export function Composer({
 }
 
 /**
- * Whether a paste carries something other than plain text.
+ * Whether a paste might be carrying files, and is therefore worth asking the
+ * native side about.
  *
- * Plain text is left to ProseMirror, which pastes it correctly and quickly.
- * Files and images have to go through Rust: a webview exposes their bytes at
- * best, never their paths. A bare `file://` URI counts as a file too -- that is
- * how a file manager's copy reaches us when the webview hides the file list.
+ * Ordinary text is left to ProseMirror -- it pastes correctly and without a
+ * round trip. What a webview reports for a file manager's copy varies: it may
+ * announce a file list, or it may expose nothing but the path as plain text.
+ * A path-shaped text is treated as a maybe and verified natively, which is
+ * safe because the fallback still pastes it as text.
  */
-function needsNativeClipboard(event: ClipboardEvent): boolean {
+function mayCarryFiles(event: ClipboardEvent): boolean {
   const types = Array.from(event.clipboardData?.types ?? []);
-  const hasFiles =
-    types.includes("Files") || types.some((type) => type.startsWith("image/"));
-  if (hasFiles) return true;
+  if (
+    types.includes("Files") ||
+    types.includes("text/uri-list") ||
+    types.includes("x-special/gnome-copied-files") ||
+    types.some((type) => type.startsWith("image/"))
+  ) {
+    return true;
+  }
   if (!types.includes("text/plain")) return true;
-  return (event.clipboardData?.getData("text/plain") ?? "").startsWith("file://");
+  return looksLikePath(event.clipboardData?.getData("text/plain") ?? "");
+}
+
+/** A single line that is a `file://` URI or an absolute/home-relative path. */
+function looksLikePath(text: string): boolean {
+  const trimmed = text.trim();
+  if (trimmed.includes("\n")) return false;
+  return (
+    trimmed.startsWith("file://") ||
+    trimmed.startsWith("/") ||
+    trimmed.startsWith("~/")
+  );
 }

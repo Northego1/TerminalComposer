@@ -14,18 +14,6 @@ export function docToText(doc: ProseMirrorNode): string {
   return doc.textBetween(0, doc.content.size, "\n", "\n");
 }
 
-/** Editor content for a plain string, one paragraph per line. */
-export function textToContent(text: string) {
-  return {
-    type: "doc",
-    content: text.split("\n").map((line) =>
-      line
-        ? { type: "paragraph", content: [{ type: "text", text: line }] }
-        : { type: "paragraph" },
-    ),
-  };
-}
-
 /**
  * Whether the caret sits on the first / last line of the document.
  *

@@ -21,6 +21,10 @@ export class TerminalInstance {
   private readonly disposers: Array<() => void> = [];
   private resizeObserver?: ResizeObserver;
   private disposed = false;
+  /** Input waiting to be written; see `writeInput`. */
+  private pendingInput = "";
+  private writing = false;
+  private lastSize = { cols: 0, rows: 0 };
 
   private constructor(readonly session: pty.PtySessionInfo) {
     this.element = document.createElement("div");
@@ -62,10 +66,14 @@ export class TerminalInstance {
     });
     this.disposers.push(unlistenOutput, unlistenExit);
 
-    const onData = this.term.onData((data) => void pty.write(id, data));
-    const onResize = this.term.onResize(({ cols, rows }) =>
-      void pty.resize(id, cols, rows),
-    );
+    const onData = this.term.onData((data) => this.writeInput(data));
+    const onResize = this.term.onResize(({ cols, rows }) => {
+      // Resizing a PTY makes the program redraw, so only tell it about sizes
+      // that actually changed -- a pane animation fires many equal ones.
+      if (cols === this.lastSize.cols && rows === this.lastSize.rows) return;
+      this.lastSize = { cols, rows };
+      void pty.resize(id, cols, rows);
+    });
     this.disposers.push(() => onData.dispose(), () => onResize.dispose());
   }
 
@@ -108,7 +116,39 @@ export class TerminalInstance {
     for (const write of writes) {
       if (write.delayBefore) await sleep(write.delayBefore);
       if (this.disposed) return;
-      await pty.write(this.session.id, write.data);
+      this.writeInput(write.data);
+    }
+  }
+
+  /**
+   * The one way input reaches the PTY, and it is deliberately a queue.
+   *
+   * Every `invoke` is an independent IPC message and Tauri is free to handle
+   * them concurrently, so firing one per keystroke lets fast typing arrive at
+   * the shell out of order. Keeping a single write in flight and coalescing
+   * whatever piles up behind it guarantees order and cuts the number of round
+   * trips at the same time.
+   */
+  private writeInput(data: string): void {
+    if (!data || this.disposed) return;
+    this.pendingInput += data;
+    void this.flushInput();
+  }
+
+  private async flushInput(): Promise<void> {
+    if (this.writing) return;
+    this.writing = true;
+    try {
+      while (this.pendingInput && !this.disposed) {
+        const chunk = this.pendingInput;
+        this.pendingInput = "";
+        await pty.write(this.session.id, chunk);
+      }
+    } catch {
+      // The session is gone; the exit event already told the user.
+      this.pendingInput = "";
+    } finally {
+      this.writing = false;
     }
   }
 
