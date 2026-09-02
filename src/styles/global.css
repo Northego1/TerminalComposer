@@ -119,6 +119,25 @@ body {
   cursor: pointer;
 }
 
+/* A tab that wants something says so without stealing the view. */
+.sidebar__agent {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: var(--text-dim);
+}
+
+.sidebar__agent--attention {
+  background: #e8590c;
+  box-shadow: 0 0 0 3px rgb(232 89 12 / 20%);
+}
+
+.sidebar__agent--waiting {
+  background: var(--accent);
+}
+
 .sidebar__close {
   width: 22px;
   height: 22px;
@@ -1031,6 +1050,30 @@ button.viewer-tabs__tab {
   width: 16px;
   height: 16px;
   accent-color: var(--accent);
+}
+
+.settings__action {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.settings__action:hover {
+  border-color: var(--border-active);
+}
+
+.settings__state {
+  color: var(--text-dim);
+  font-size: 12px;
+}
+
+.settings__note--error {
+  color: #ff9a9a;
 }
 
 .settings__note {

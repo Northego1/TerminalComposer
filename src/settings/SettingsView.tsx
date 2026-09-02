@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { hooksInstalled } from "../agent/events";
 
 import { useSettingsStore, type Settings } from "../app/settingsStore";
 import { LANGUAGE_NAMES, LANGUAGES, useT, type StringKey } from "../i18n";
@@ -124,6 +126,8 @@ export function SettingsView() {
               />
             </div>
 
+            <AgentHooksRow />
+
             <label className="settings__row">
               <span>{t("settings.shellIntegration")}</span>
               <input
@@ -177,5 +181,43 @@ export function SettingsView() {
         )}
       </div>
     </section>
+  );
+}
+
+/**
+ * The hooks are on by default, so this is a switch rather than a button -- but
+ * it still says plainly that another program's file is being edited.
+ */
+function AgentHooksRow() {
+  const t = useT();
+  const enabled = useSettingsStore((state) => state.settings.agentHooks);
+  const update = useSettingsStore((state) => state.update);
+  const [installed, setInstalled] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void hooksInstalled().then(setInstalled);
+  }, [enabled]);
+
+  return (
+    <>
+      <label className="settings__row">
+        <span>
+          {t("settings.agentHooks")}
+          {installed !== null && (
+            <span className="settings__state">
+              {" · "}
+              {t(installed ? "settings.agentHooks.installed" : "settings.agentHooks.absent")}
+            </span>
+          )}
+        </span>
+        <input
+          type="checkbox"
+          className="settings__toggle"
+          checked={enabled}
+          onChange={(event) => update({ agentHooks: event.target.checked })}
+        />
+      </label>
+      <p className="settings__note">{t("settings.agentHooks.note")}</p>
+    </>
   );
 }

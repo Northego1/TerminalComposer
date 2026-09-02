@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import type { AgentState } from "../agent/events";
 import { t } from "../i18n";
 import { TerminalInstance } from "../terminal/TerminalInstance";
 import { useSettingsStore } from "./settingsStore";
@@ -63,6 +64,9 @@ interface TabsState {
   openFile: (path: string) => void;
   showFile: (tabId: string, path: string | null) => void;
   closeFile: (tabId: string, path: string) => void;
+  /** What the agent in each terminal is doing, when one reports it. */
+  agents: Record<string, AgentState>;
+  setAgentState: (sessionId: string, state: AgentState) => void;
   openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
   openSettings: (name?: string) => void;
   restore: (
@@ -117,6 +121,10 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           : open.active;
       return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
     }),
+  agents: {},
+
+  setAgentState: (sessionId, state) =>
+    set((current) => ({ agents: { ...current.agents, [sessionId]: state } })),
 
   openTerminal: async (spawn = {}) => {
     const settings = useSettingsStore.getState().settings;
@@ -227,6 +235,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           : state.activeId;
       const { [id]: _gone, ...viewers } = state.viewers;
       return { tabs, activeId, viewers };
+      const { [id]: _closed, ...agents } = state.agents;
+      return { tabs, activeId, agents };
     });
 
     await instance?.dispose();
@@ -234,7 +244,14 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (get().tabs.length === 0) await get().openTerminal();
   },
 
-  activate: (id) => set({ activeId: id }),
+  activate: (id) =>
+    set((state) => ({
+      activeId: id,
+      agents:
+        state.agents[id] === "attention"
+          ? { ...state.agents, [id]: "waiting" }
+          : state.agents,
+    })),
 
   rename: (id, name) =>
     set((state) => ({

@@ -40,7 +40,8 @@ impl PtySession {
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
 
-        if options.shell_integration && crate::shell::is_supported(&shell) {
+        let integrated = options.shell_integration && crate::shell::is_supported(&shell);
+        if integrated {
             if let Some(zdotdir) = crate::shell::prepare_zsh() {
                 // The shell reads our startup files, and they load the user's.
                 cmd.env(
@@ -54,6 +55,11 @@ impl PtySession {
                 );
             }
         }
+
+        // Everything the shell starts inherits these, which is how an agent's
+        // hook finds its way back to the right tab.
+        cmd.env("TERMINAL_COMPOSER_SESSION", &id);
+        cmd.env("TERMINAL_COMPOSER_EVENTS", crate::agent::events_pipe());
 
         let child = pair
             .slave
@@ -73,6 +79,7 @@ impl PtySession {
             .map_err(|e| format!("failed to write to pty: {e}"))?;
 
         let pid = child.process_id();
+        crate::agent::log(&format!("spawn session={id} shell={shell} integration={integrated}"));
         pump::start(app, id.clone(), reader);
 
         Ok(Self {
