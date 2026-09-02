@@ -227,6 +227,20 @@ body {
   white-space: nowrap;
 }
 
+.app__badge {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  color: var(--text-dim);
+  font-size: 10.5px;
+  white-space: nowrap;
+}
+
+.app__badge--running {
+  border-color: var(--border-active);
+  color: var(--accent);
+}
+
 .app__body {
   position: relative;
   flex: 1;

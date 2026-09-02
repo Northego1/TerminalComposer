@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
 import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
+import type { ShellState } from "./terminal/TerminalInstance";
 import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
@@ -83,9 +84,13 @@ export default function App() {
    * Without the integration the shell says nothing and neither does this: the
    * keyboard stays where the user put it.
    */
+  const [shellState, setShellState] = useState<ShellState>("unknown");
+
   useEffect(() => {
     const instance = getInstance(activeId);
+    setShellState(instance?.shellState ?? "unknown");
     return instance?.onShellStateChange((state) => {
+      setShellState(state);
       if (state === "prompt") focusPane("composer");
       else if (state === "running") focusPane("terminal");
     });
@@ -124,6 +129,16 @@ export default function App() {
           <span className="app__subtitle">
             {active?.kind === "terminal" ? `${active.shell} · ${active.cwd}` : ""}
           </span>
+          {/* Says why the keyboard is where it is, rather than leaving it to be
+              worked out from the composer collapsing. */}
+          {onTerminal && shellState !== "unknown" && (
+            <span
+              className={`app__badge app__badge--${shellState}`}
+              title={active?.kind === "terminal" ? active.shell : undefined}
+            >
+              {t(shellState === "running" ? "app.shell.running" : "app.shell.prompt")}
+            </span>
+          )}
         </header>
 
         <main className="app__body">

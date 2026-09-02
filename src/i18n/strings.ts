@@ -7,6 +7,8 @@
  */
 export const EN = {
   "app.error.spawn": "Could not start the shell:",
+  "app.shell.prompt": "shell · waiting",
+  "app.shell.running": "shell · running",
 
   "sidebar.newTerminal": "New terminal (Ctrl+Shift+T)",
   "sidebar.closeTab": "Close tab",
@@ -64,6 +66,8 @@ export type StringKey = keyof typeof EN;
 
 export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
+  "app.shell.prompt": "shell · ждёт",
+  "app.shell.running": "shell · выполняется",
 
   "sidebar.newTerminal": "Новый терминал (Ctrl+Shift+T)",
   "sidebar.closeTab": "Закрыть вкладку",
