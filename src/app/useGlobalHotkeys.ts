@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useFocusStore } from "./focusStore";
+import { DEFAULT_SETTINGS, useSettingsStore } from "./settingsStore";
 import { getInstance, useTabsStore } from "./tabsStore";
 
 interface GlobalHotkeys {
@@ -76,6 +77,9 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
       case "KeyV":
         void pasteIntoTerminal();
         return true;
+      // "+" is Shift+= on most layouts.
+      case "Equal":
+        return zoom(1);
       default:
         return false;
     }
@@ -86,7 +90,29 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
     openSearch();
     return true;
   }
+
+  // Zoom, the way a terminal means it: the terminal's own font size, which is
+  // a setting, so it survives a restart like every other one.
+  if (code === "Equal" || code === "NumpadAdd") return zoom(1);
+  if (code === "Minus" || code === "NumpadSubtract") return zoom(-1);
+  if (code === "Digit0" || code === "Numpad0") return zoom(0);
+
   return false;
+}
+
+const FONT_SIZE_RANGE = { min: 8, max: 32 };
+
+function zoom(direction: 1 | -1 | 0): boolean {
+  const { settings, update } = useSettingsStore.getState();
+  const fontSize =
+    direction === 0
+      ? DEFAULT_SETTINGS.fontSize
+      : Math.min(
+          Math.max(settings.fontSize + direction, FONT_SIZE_RANGE.min),
+          FONT_SIZE_RANGE.max,
+        );
+  if (fontSize !== settings.fontSize) update({ fontSize });
+  return true;
 }
 
 function focus(pane: "terminal" | "composer"): boolean {
