@@ -1,6 +1,6 @@
 [package]
 name = "terminal-composer"
-version = "1.0.0"
+version = "1.1.0"
 description = "Linux terminal with a ChatGPT-like input composer"
 authors = ["you"]
 edition = "2021"
