@@ -39,9 +39,15 @@ export function TerminalSearch({ onClose }: TerminalSearchProps) {
     }
     if (direction === "next") instance.findNext(value);
     else instance.findPrevious(value);
+    // Stepping through matches selects and scrolls the terminal, which takes
+    // the keyboard with it -- without this the next arrow press would reach the
+    // shell instead of the search box.
+    inputRef.current?.focus();
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    // Nothing behind the search box should act on the keys it uses.
+    event.stopPropagation();
     switch (event.key) {
       case "Enter":
       case "ArrowDown":
