@@ -132,8 +132,13 @@ export default function App() {
       const instance = getInstance(useTabsStore.getState().activeId);
       if (!instance || isEmptyMessage(message)) return;
       void instance.submit(getAdapter().serialize(message, instance.capabilities));
+      // Whatever was sent, the answer comes back in the terminal -- output, a
+      // question, a picker. This needs no signal at all: we know we just sent
+      // something. The keyboard comes back on its own when the shell returns to
+      // its prompt or the agent finishes answering.
+      focusPane("terminal");
     },
-    [],
+    [focusPane],
   );
 
 
