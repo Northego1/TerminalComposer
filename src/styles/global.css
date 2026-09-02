@@ -227,15 +227,6 @@ body {
   white-space: nowrap;
 }
 
-.app__badge {
-  padding: 2px 7px;
-  border: 1px solid var(--border-active);
-  border-radius: 20px;
-  color: var(--accent);
-  font-size: 10.5px;
-  white-space: nowrap;
-}
-
 .app__body {
   position: relative;
   flex: 1;
@@ -433,11 +424,6 @@ body {
 
 .composer--active {
   border-color: var(--border-active);
-}
-
-/* While a password is being asked for, the field is visibly not the place. */
-.composer--secret {
-  opacity: 0.5;
 }
 
 .composer--drop {
@@ -753,6 +739,12 @@ body {
 .settings__row select:focus,
 .settings__row input[type="text"]:focus {
   border-color: var(--border-active);
+}
+
+.settings__toggle {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
 }
 
 .settings__note {

@@ -39,6 +39,18 @@ impl PtySession {
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
 
+        let integrated = options.shell_integration && crate::shell::is_supported(&shell);
+        if integrated {
+            if let Some(zdotdir) = crate::shell::prepare_zsh() {
+                // The shell reads our startup files, and they load the user's.
+                cmd.env(
+                    "TERMINAL_COMPOSER_USER_ZDOTDIR",
+                    std::env::var("ZDOTDIR").unwrap_or_else(|_| home_dir()),
+                );
+                cmd.env("ZDOTDIR", zdotdir);
+            }
+        }
+
         let child = pair
             .slave
             .spawn_command(cmd)
@@ -84,8 +96,7 @@ impl PtySession {
             .map_err(|e| format!("failed to resize pty: {e}"))
     }
 
-    /// Where the shell is now, what is checked out there, and whether something
-    /// is currently reading a secret.
+    /// Where the shell is now and what is checked out there.
     ///
     /// The cwd comes from the shell's own `/proc` symlink, so it follows every
     /// `cd` -- guessing it from terminal output would only ever be a guess.
@@ -97,31 +108,7 @@ impl PtySession {
             .unwrap_or_else(|| self.cwd.clone());
         let branch = crate::vcs::branch_at(std::path::Path::new(&cwd));
 
-        SessionContext {
-            cwd,
-            branch,
-            secret_input: self.reads_secret(),
-        }
-    }
-
-    /// Whether a program other than the shell has switched terminal echo off.
-    ///
-    /// That is what `sudo`, `ssh` and `git` do to read a password, and the
-    /// kernel knows it because the program asked for it -- no guessing and no
-    /// list of known programs. The shell's own line editor keeps echo off too,
-    /// which is why this only counts when the terminal's foreground group is
-    /// something the shell launched.
-    fn reads_secret(&self) -> bool {
-        let Some(shell) = self.pid else {
-            return false;
-        };
-        let Some(foreground) = self.master.process_group_leader() else {
-            return false;
-        };
-        if foreground as u32 == shell {
-            return false;
-        }
-        self.master.as_raw_fd().is_some_and(|fd| echo_off(fd))
+        SessionContext { cwd, branch }
     }
 
     pub fn close(mut self) {
@@ -140,22 +127,6 @@ impl PtySession {
 pub struct SessionContext {
     pub cwd: String,
     pub branch: Option<String>,
-    /// A program is reading something it does not want echoed -- a password.
-    pub secret_input: bool,
-}
-
-#[cfg(unix)]
-fn echo_off(fd: std::os::fd::RawFd) -> bool {
-    let mut termios: libc::termios = unsafe { std::mem::zeroed() };
-    if unsafe { libc::tcgetattr(fd, &mut termios) } != 0 {
-        return false;
-    }
-    termios.c_lflag & libc::ECHO == 0
-}
-
-#[cfg(not(unix))]
-fn echo_off(_fd: std::os::fd::RawFd) -> bool {
-    false
 }
 
 fn pty_size(cols: u16, rows: u16) -> PtySize {

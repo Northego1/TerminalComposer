@@ -73,20 +73,21 @@ export default function App() {
   }, [pane, activeId]);
 
   /**
-   * Whether a full-screen program owns the active terminal.
+   * Who owns the keyboard, decided by what the shell reports about itself.
    *
-   * Kept in state rather than read on demand, because two things depend on it:
-   * the keyboard follows such a program in and out, and the interface says so
-   * -- guessing where the keys are going is exactly what makes this confusing.
+   * Waiting for a command -> the composer, which is where commands are written.
+   * Running one -> the terminal, whatever is running there: a full-screen
+   * program, a prompt for confirmation, a password. Nothing is inferred from
+   * the output, so no program can be a special case.
+   *
+   * Without the integration the shell says nothing and neither does this: the
+   * keyboard stays where the user put it.
    */
-  const [fullScreen, setFullScreen] = useState(false);
-
   useEffect(() => {
     const instance = getInstance(activeId);
-    setFullScreen(instance?.isFullScreen ?? false);
-    return instance?.onFullScreenChange((active) => {
-      setFullScreen(active);
-      focusPane(active ? "terminal" : "composer");
+    return instance?.onShellStateChange((state) => {
+      if (state === "prompt") focusPane("composer");
+      else if (state === "running") focusPane("terminal");
     });
   }, [activeId, focusPane]);
 
@@ -99,19 +100,6 @@ export default function App() {
     [],
   );
 
-  /**
-   * Keys the composer has no use for, handed to the program drawing the
-   * terminal. There is no way to know that a program is waiting for an answer
-   * -- terminals have no such signal -- so this does not try: while a
-   * full-screen program owns the screen and the field is empty, keys that
-   * cannot mean text can only have been meant for it.
-   */
-  const handleForwardKey = useCallback((sequence: string) => {
-    const instance = getInstance(useTabsStore.getState().activeId);
-    if (!instance?.isFullScreen) return false;
-    instance.sendKey(sequence);
-    return true;
-  }, []);
 
   const handleAbort = useCallback(() => {
     getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().abort());
@@ -136,9 +124,6 @@ export default function App() {
           <span className="app__subtitle">
             {active?.kind === "terminal" ? `${active.shell} · ${active.cwd}` : ""}
           </span>
-          {onTerminal && fullScreen && (
-            <span className="app__badge">{t("app.fullScreen")}</span>
-          )}
         </header>
 
         <main className="app__body">
@@ -209,8 +194,6 @@ export default function App() {
               onSubmit={handleSubmit}
               onAbort={handleAbort}
               onInterrupt={handleInterrupt}
-              onForwardKey={handleForwardKey}
-              passthrough={fullScreen}
               disabled={!onTerminal}
             />
           </div>

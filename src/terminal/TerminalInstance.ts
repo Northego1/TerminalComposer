@@ -11,6 +11,9 @@ import type {
 } from "../message/adapters/Adapter";
 import * as pty from "./ptyClient";
 
+/** What the shell reports about itself, when it reports anything. */
+export type ShellState = "unknown" | "prompt" | "running";
+
 /**
  * One terminal session: an xterm.js instance bound to one PTY.
  *
@@ -30,6 +33,8 @@ export class TerminalInstance {
   private pendingInput = "";
   private writing = false;
   private lastSize = { cols: 0, rows: 0 };
+  private shell: ShellState = "unknown";
+  private readonly shellStateHandlers = new Set<(state: ShellState) => void>();
 
   private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
@@ -48,6 +53,7 @@ export class TerminalInstance {
     this.searchAddon = new SearchAddon();
     this.term.loadAddon(this.searchAddon);
     this.term.attachCustomKeyEventHandler((event) => this.handleKey(event));
+    this.watchShellState();
     this.term.open(this.element);
   }
 
@@ -59,6 +65,7 @@ export class TerminalInstance {
     const session = await pty.spawn({
       cwd: spawn.cwd || settings.cwd || undefined,
       shell: spawn.shell || settings.shell || undefined,
+      shellIntegration: settings.shellIntegration,
       cols: 80,
       rows: 24,
     });
@@ -218,30 +225,39 @@ export class TerminalInstance {
   }
 
   /**
-   * Whether a full-screen program owns the terminal.
+   * What the shell says it is doing.
    *
-   * The alternate screen is the standard way a program says "I am drawing the
-   * whole terminal now" -- `claude`, `vim`, `htop` and `less` all switch to it.
-   * There is no signal for "I am waiting for you to choose something", so this
-   * is the closest honest answer: while it is on, the keyboard belongs to that
-   * program rather than to the composer.
+   * `unknown` until the integration reports something -- another shell, or one
+   * started without it. Nothing is inferred in that case; the keyboard simply
+   * stays wherever the user put it.
    */
-  get isFullScreen(): boolean {
-    return this.term.buffer.active.type === "alternate";
+  get shellState(): ShellState {
+    return this.shell;
   }
 
-  /** Sends a key sequence as though it had been pressed in the terminal. */
-  sendKey(sequence: string): void {
-    this.term.input(sequence);
-    this.term.scrollToBottom();
+  onShellStateChange(handler: (state: ShellState) => void): () => void {
+    this.shellStateHandlers.add(handler);
+    return () => {
+      this.shellStateHandlers.delete(handler);
+    };
   }
 
-  /** Fires when a program takes the whole terminal, or gives it back. */
-  onFullScreenChange(handler: (fullScreen: boolean) => void): () => void {
-    const subscription = this.term.buffer.onBufferChange((buffer) =>
-      handler(buffer.type === "alternate"),
-    );
-    return () => subscription.dispose();
+  /**
+   * Listens for the shell's own account of itself (OSC 133).
+   *
+   * `C` means a command started; `A`, `B` and `D` all mean the shell is back at
+   * its prompt. This is reported by the shell rather than guessed from its
+   * output, which is the whole point: no program can surprise it.
+   */
+  private watchShellState(): void {
+    this.term.parser.registerOscHandler(133, (data) => {
+      const next: ShellState = data.startsWith("C") ? "running" : "prompt";
+      if (next !== this.shell) {
+        this.shell = next;
+        for (const handler of this.shellStateHandlers) handler(next);
+      }
+      return true;
+    });
   }
 
   /** Scrollback search. Returns whether anything matched. */

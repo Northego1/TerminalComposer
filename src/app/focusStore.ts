@@ -8,7 +8,8 @@ import { create } from "zustand";
  * value -- never the other way round.
  *
  * Transitions:
- *   - the app starts with the composer active;
+ *   - the shell says whether it is waiting for a command or running one, and
+ *     the keyboard follows that;
  *   - a mouse press inside a pane activates it;
  *   - Escape in the composer jumps to the terminal;
  *   - Ctrl+Shift+Up opens the composer, Ctrl+Shift+Down puts it away;
@@ -26,7 +27,10 @@ interface FocusState {
 }
 
 export const useFocusStore = create<FocusState>((set) => ({
-  pane: "composer",
+  // The terminal starts with it. With the shell integration the first prompt
+  // hands it to the composer straight away; without, it stays here and the
+  // composer is opened by hand -- nothing is ever guessed.
+  pane: "terminal",
   focusPane: (pane) => set({ pane }),
   togglePane: () =>
     set((state) => ({

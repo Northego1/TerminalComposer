@@ -7,7 +7,6 @@
  */
 export const EN = {
   "app.error.spawn": "Could not start the shell:",
-  "app.fullScreen": "full screen",
 
   "sidebar.newTerminal": "New terminal (Ctrl+Shift+T)",
   "sidebar.closeTab": "Close tab",
@@ -20,9 +19,6 @@ export const EN = {
     "Enter — send · Shift+Enter — new line · ↑↓ — history · Ctrl+C — reset · Esc — collapse",
   "composer.hint.undo": "Esc — take the message back",
   "composer.hint.drop": "Release to attach the files",
-  "composer.hint.secret": "A password is being asked for — type it in the terminal",
-  "composer.hint.passthrough":
-    "Arrows, Tab and Enter go to the program · Ctrl+↑ — history",
   "composer.send": "Enter →",
   "composer.expand": "Open composer",
 
@@ -47,6 +43,9 @@ export const EN = {
   "settings.fontFamily.system": "System monospace",
   "settings.fontSize": "Font size",
   "settings.scrollback": "Scrollback, lines",
+  "settings.shellIntegration": "Shell integration",
+  "settings.shellIntegration.note":
+    "Lets the shell say whether it is waiting for a command or running one, which is what decides where the keyboard goes. Only zsh for now; your ~/.zshrc is not modified.",
   "settings.shell": "Shell for new tabs",
   "settings.shell.placeholder": "$SHELL",
   "settings.cwd": "Directory for new tabs",
@@ -65,7 +64,6 @@ export type StringKey = keyof typeof EN;
 
 export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
-  "app.fullScreen": "полноэкранная программа",
 
   "sidebar.newTerminal": "Новый терминал (Ctrl+Shift+T)",
   "sidebar.closeTab": "Закрыть вкладку",
@@ -78,9 +76,6 @@ export const RU: Record<StringKey, string> = {
     "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть",
   "composer.hint.undo": "Esc — отменить отправку и вернуть текст",
   "composer.hint.drop": "Отпустите — файлы станут вложениями",
-  "composer.hint.secret": "Запрошен пароль — набирайте его в терминале",
-  "composer.hint.passthrough":
-    "Стрелки, Tab и Enter уходят в программу · Ctrl+↑ — история",
   "composer.send": "Enter →",
   "composer.expand": "Открыть composer",
 
@@ -105,6 +100,9 @@ export const RU: Record<StringKey, string> = {
   "settings.fontFamily.system": "Системный моноширинный",
   "settings.fontSize": "Размер шрифта",
   "settings.scrollback": "Глубина scrollback, строк",
+  "settings.shellIntegration": "Интеграция с shell",
+  "settings.shellIntegration.note":
+    "Позволяет шеллу сообщать, ждёт он команду или выполняет её — от этого зависит, кому достаётся клавиатура. Пока только zsh; ваш ~/.zshrc не меняется.",
   "settings.shell": "Shell для новых вкладок",
   "settings.shell.placeholder": "$SHELL",
   "settings.cwd": "Каталог для новых вкладок",

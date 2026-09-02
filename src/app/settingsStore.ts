@@ -16,6 +16,14 @@ export interface Settings {
   shell: string;
   /** Working directory for new terminals; empty means the home directory. */
   cwd: string;
+  /**
+   * Load the shell integration in new terminals.
+   *
+   * With it the shell reports whether it is waiting for a command or running
+   * one, which is what decides where the keyboard goes. Without it nothing is
+   * guessed -- the composer is simply opened by hand.
+   */
+  shellIntegration: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +36,7 @@ export const DEFAULT_SETTINGS: Settings = {
   composerMaxHeight: 40,
   shell: "",
   cwd: "",
+  shellIntegration: true,
 };
 
 interface SettingsState {

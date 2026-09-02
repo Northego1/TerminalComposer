@@ -125,6 +125,16 @@ export function SettingsView() {
             </div>
 
             <label className="settings__row">
+              <span>{t("settings.shellIntegration")}</span>
+              <input
+                type="checkbox"
+                className="settings__toggle"
+                checked={settings.shellIntegration}
+                onChange={(event) => set("shellIntegration", event.target.checked)}
+              />
+            </label>
+
+            <label className="settings__row">
               <span>{t("settings.shell")}</span>
               <input
                 type="text"
@@ -144,6 +154,7 @@ export function SettingsView() {
               />
             </label>
 
+            <p className="settings__note">{t("settings.shellIntegration.note")}</p>
             <p className="settings__note">{t("settings.note.terminal")}</p>
           </div>
         )}

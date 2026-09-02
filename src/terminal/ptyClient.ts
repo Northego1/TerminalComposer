@@ -14,6 +14,8 @@ export interface PtySessionInfo {
 export interface SpawnOptions {
   cwd?: string;
   shell?: string;
+  /** Load the integration that makes the shell report its own state. */
+  shellIntegration: boolean;
   cols: number;
   rows: number;
 }
@@ -33,8 +35,6 @@ export function resize(id: string, cols: number, rows: number): Promise<void> {
 export interface SessionContext {
   cwd: string;
   branch: string | null;
-  /** A program is reading a password: nothing typed here may be echoed. */
-  secretInput: boolean;
 }
 
 /** Where the shell is now and what is checked out there. */

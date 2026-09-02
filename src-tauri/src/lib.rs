@@ -6,6 +6,7 @@
 
 mod clipboard;
 mod pty;
+mod shell;
 mod state;
 mod vcs;
 

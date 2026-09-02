@@ -47,6 +47,9 @@ pub struct SpawnOptions {
     pub cwd: Option<String>,
     /// Shell to run. Defaults to `$SHELL`.
     pub shell: Option<String>,
+    /// Whether to load the shell integration that reports the shell's state.
+    #[serde(default)]
+    pub shell_integration: bool,
     pub cols: u16,
     pub rows: u16,
 }

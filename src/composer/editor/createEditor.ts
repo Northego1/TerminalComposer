@@ -9,18 +9,6 @@ import { AttachmentNode } from "./AttachmentNode";
 
 import { onFirstLine, onLastLine } from "./documentText";
 
-const CR = "\r";
-const TAB = "\t";
-const ESC = "\x1b";
-const ARROW = {
-  up: "\x1b[A",
-  down: "\x1b[B",
-  right: "\x1b[C",
-  left: "\x1b[D",
-};
-
-export { ESC as TERMINAL_ESCAPE };
-
 /**
  * What the keymap needs from the composer. Handlers return true when they
  * consumed the key, following the ProseMirror convention.
@@ -31,15 +19,6 @@ export interface ComposerHandlers {
   cancel(): boolean;
   recallPrevious(): boolean;
   recallNext(): boolean;
-  /**
-   * Sends a key to the terminal instead of acting on it.
-   *
-   * Only while the field is empty and a full-screen program owns the terminal.
-   * Then a key with no text meaning -- an arrow, Tab, Enter, Escape -- can only
-   * have been meant for that program, and there is no text here for it to move
-   * through anyway.
-   */
-  forward(sequence: string): boolean;
   /** Ctrl+C on an empty selection: drop the draft and interrupt the target. */
   interrupt(): boolean;
 }
@@ -62,21 +41,13 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
   addKeyboardShortcuts() {
     const handlers = () => this.options.handlers();
     return {
-      Enter: () => handlers().forward(CR) || handlers().submit(),
+      Enter: () => handlers().submit(),
       "Shift-Enter": ({ editor }) => editor.commands.splitBlock(),
       Escape: () => handlers().cancel(),
-      Tab: () => handlers().forward(TAB),
       ArrowUp: ({ editor }) =>
-        handlers().forward(ARROW.up) ||
-        (onFirstLine(editor.state) ? handlers().recallPrevious() : false),
+        onFirstLine(editor.state) ? handlers().recallPrevious() : false,
       ArrowDown: ({ editor }) =>
-        handlers().forward(ARROW.down) ||
-        (onLastLine(editor.state) ? handlers().recallNext() : false),
-      ArrowLeft: () => handlers().forward(ARROW.left),
-      ArrowRight: () => handlers().forward(ARROW.right),
-      // History stays reachable even when the arrows belong to a program.
-      "Mod-ArrowUp": () => handlers().recallPrevious(),
-      "Mod-ArrowDown": () => handlers().recallNext(),
+        onLastLine(editor.state) ? handlers().recallNext() : false,
     };
   },
 
