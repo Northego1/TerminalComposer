@@ -47,6 +47,7 @@ export class TerminalInstance {
     this.term.loadAddon(this.fitAddon);
     this.searchAddon = new SearchAddon();
     this.term.loadAddon(this.searchAddon);
+    this.term.attachCustomKeyEventHandler((event) => this.handleKey(event));
     this.term.open(this.element);
   }
 
@@ -188,6 +189,34 @@ export class TerminalInstance {
     return { bracketedPaste: this.term.modes.bracketedPasteMode };
   }
 
+  /**
+   * Keys, resolved without `event.keyCode`.
+   *
+   * xterm.js derives both control characters and printable input from
+   * `keyCode` -- Ctrl+letter from the range 65..90, and a character only when
+   * `keyCode >= 48`. WebKitGTK does not report the physical key there for
+   * non-Latin layouts, so with a Cyrillic layout active Ctrl+C never became
+   * 0x03 and typed letters either vanished or arrived twice, once through the
+   * key handler and once through the hidden textarea.
+   *
+   * Resolving from `event.code` (the physical key) and `event.key` (the
+   * character) removes that dependency. What we handle is fed back through
+   * xterm's own input path, so ordering, scrolling and the write queue all
+   * behave exactly as they do for keys we leave alone.
+   */
+  private handleKey(event: KeyboardEvent): boolean {
+    if (event.type !== "keydown") return true;
+
+    const data = translateKey(event);
+    if (data === null) return true;
+
+    // Without this the character would also reach the hidden textarea and be
+    // sent a second time.
+    event.preventDefault();
+    this.term.input(data);
+    return false;
+  }
+
   /** Scrollback search. Returns whether anything matched. */
   findNext(term: string): boolean {
     return this.searchAddon.findNext(term, SEARCH_OPTIONS);
@@ -244,6 +273,48 @@ const SEARCH_OPTIONS = {
     activeMatchColorOverviewRuler: "#e8590c",
   },
 };
+
+/**
+ * The bytes a key press should send, or null to leave it to xterm.
+ *
+ * Only the two cases xterm gets wrong on this platform are taken over:
+ * control characters and plain characters. Everything with a special meaning --
+ * arrows, function keys, IME composition -- is left alone.
+ */
+function translateKey(event: KeyboardEvent): string | null {
+  if (event.altKey || event.metaKey) return null;
+
+  if (event.ctrlKey) {
+    // Ctrl+Shift belongs to the application, not to the terminal.
+    if (event.shiftKey) return null;
+    return controlCharacter(event.code);
+  }
+
+  // Mid-composition the textarea owns the input, and it must keep it.
+  if (event.isComposing || event.keyCode === 229) return null;
+
+  return event.key.length === 1 ? event.key : null;
+}
+
+function controlCharacter(code: string): string | null {
+  if (/^Key[A-Z]$/.test(code)) {
+    return String.fromCharCode(code.charCodeAt(3) - 64);
+  }
+  switch (code) {
+    case "Space":
+      return "\x00";
+    case "BracketLeft":
+      return "\x1b";
+    case "Backslash":
+      return "\x1c";
+    case "BracketRight":
+      return "\x1d";
+    case "Slash":
+      return "\x1f";
+    default:
+      return null;
+  }
+}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
