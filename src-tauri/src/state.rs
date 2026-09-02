@@ -32,8 +32,10 @@ pub fn state_write(app: AppHandle, key: String, value: String) -> Result<(), Str
     }
     // Write through a temporary file so a crash mid-write cannot leave a
     // half-written document behind.
+    // The workspace holds the command history, which a shell keeps at 0600 --
+    // this copy of it is worth the same.
     let temporary = path.with_extension("json.tmp");
-    std::fs::write(&temporary, value)
+    crate::private::write(&temporary, value)
         .map_err(|error| format!("failed to write {temporary:?}: {error}"))?;
     std::fs::rename(&temporary, &path)
         .map_err(|error| format!("failed to replace {path:?}: {error}"))

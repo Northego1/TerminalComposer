@@ -37,6 +37,12 @@ pub fn read_file(path: String) -> Result<FileContents, String> {
     if metadata.is_dir() {
         return Err(format!("{path:?} is a directory"));
     }
+    // A pipe or a device is not something to open by clicking a word: reading
+    // one blocks until somebody writes, and this command runs on the thread the
+    // window is waiting on.
+    if !metadata.is_file() {
+        return Err(format!("{path:?} is not a regular file"));
+    }
 
     let name = path
         .file_name()
@@ -58,7 +64,16 @@ pub fn read_file(path: String) -> Result<FileContents, String> {
         });
     }
 
-    let bytes = std::fs::read(&path).map_err(|e| format!("{path:?}: {e}"))?;
+    // Bounded at the read, not after it: the size in the metadata is a promise
+    // rather than a fact -- a file can grow between the two calls, and one that
+    // never ends (`/proc`, a growing log) has no size at all.
+    let mut bytes = Vec::new();
+    std::fs::File::open(&path)
+        .and_then(|file| {
+            use std::io::Read;
+            file.take(MAX_BYTES as u64 + 1).read_to_end(&mut bytes)
+        })
+        .map_err(|e| format!("{path:?}: {e}"))?;
     let truncated = bytes.len() > MAX_BYTES;
     let slice = &bytes[..bytes.len().min(MAX_BYTES)];
 
@@ -73,6 +88,24 @@ pub fn read_file(path: String) -> Result<FileContents, String> {
         truncated,
         ..common
     })
+}
+
+/// Opens a link from a viewed file in the user's browser.
+///
+/// A file the terminal pointed at is not trusted, and following a link inside
+/// it in this window would replace the application with whatever is at the
+/// other end. So the window never navigates: the address goes to the desktop,
+/// and only if it is one of the two schemes a browser is for.
+#[tauri::command]
+pub fn open_external(url: String) -> Result<(), String> {
+    if !(url.starts_with("http://") || url.starts_with("https://")) {
+        return Err(format!("refusing to open {url:?}"));
+    }
+    std::process::Command::new("xdg-open")
+        .arg(&url)
+        .spawn()
+        .map(|_| ())
+        .map_err(|e| format!("failed to open {url:?}: {e}"))
 }
 
 /// Which of these words name a file that exists, relative to the session's cwd.

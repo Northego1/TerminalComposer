@@ -10,7 +10,8 @@ use super::extension_for_mime;
 
 pub fn write_image(bytes: &[u8], mime: &str) -> Result<PathBuf, String> {
     let dir = scratch_dir();
-    std::fs::create_dir_all(&dir).map_err(|e| format!("failed to create {dir:?}: {e}"))?;
+    // A pasted screenshot is the user's, and the fallback location is shared.
+    crate::private::create_dir(&dir).map_err(|e| format!("failed to create {dir:?}: {e}"))?;
 
     let path = dir.join(format!(
         "paste-{}.{}",

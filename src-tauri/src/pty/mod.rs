@@ -9,6 +9,7 @@ mod session;
 mod terminate;
 
 use std::collections::HashMap;
+use std::io::Write;
 use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
@@ -89,7 +90,14 @@ pub fn pty_spawn(
 
 #[tauri::command]
 pub fn pty_write(registry: State<'_, PtyRegistry>, id: String, data: String) -> Result<(), String> {
-    registry.with(&id, |session| session.write(data.as_bytes()))?
+    // The registry is let go before the write, which may block for as long as
+    // the program on the other end refuses to read.
+    let writer = registry.with(&id, |session| session.writer())?;
+    let mut writer = writer.lock().map_err(|_| "pty writer poisoned")?;
+    writer
+        .write_all(data.as_bytes())
+        .and_then(|()| writer.flush())
+        .map_err(|e| format!("failed to write to pty: {e}"))
 }
 
 #[tauri::command]

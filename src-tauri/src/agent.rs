@@ -103,7 +103,7 @@ pub fn log(line: &str) {
 fn create_pipe() -> Option<PathBuf> {
     let path = events_pipe();
     let parent = path.parent()?;
-    std::fs::create_dir_all(parent).ok()?;
+    crate::private::create_dir(parent).ok()?;
     // A pipe left over from a previous run is of no use to this one.
     let _ = std::fs::remove_file(&path);
 
@@ -124,11 +124,21 @@ fn set_executable(path: &std::path::Path) -> Option<()> {
 // ---- installing the hooks into Claude Code's settings ----
 
 /// The lifecycle events worth knowing about, and what each one means here.
-const HOOKED_EVENTS: [&str; 3] = [
+const HOOKED_EVENTS: [&str; 4] = [
+    "SessionStart",     // it is up and waiting for the first message
     "UserPromptSubmit", // the agent started working
     "Stop",             // it answered; the user's turn
     "Notification",     // it needs the user now
 ];
+
+/// Whether a hook entry is one of ours.
+///
+/// Both halves are required: another tool may ship a script by the same name,
+/// and ours always sits in this application's own directory.
+fn is_ours(entry: &serde_json::Value) -> bool {
+    let text = entry.to_string();
+    text.contains("report-event.sh") && text.contains("terminal-composer")
+}
 
 fn settings_path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var_os("HOME")?).join(".claude/settings.json"))
@@ -190,7 +200,7 @@ pub fn agent_hooks_install(app: AppHandle) -> Result<(), String> {
             .entry(event)
             .or_insert_with(|| serde_json::json!([]));
         let list = list.as_array_mut().ok_or("hook event is not a list")?;
-        list.retain(|item| !item.to_string().contains("report-event.sh"));
+        list.retain(|item| !is_ours(item));
         list.push(entry);
     }
 
@@ -214,7 +224,7 @@ pub fn agent_hooks_remove() -> Result<(), String> {
     if let Some(hooks) = settings.get_mut("hooks").and_then(|h| h.as_object_mut()) {
         for event in HOOKED_EVENTS {
             if let Some(list) = hooks.get_mut(event).and_then(|l| l.as_array_mut()) {
-                list.retain(|item| !item.to_string().contains("report-event.sh"));
+                list.retain(|item| !is_ours(item));
             }
         }
         hooks.retain(|_, value| !value.as_array().is_some_and(|list| list.is_empty()));

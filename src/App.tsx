@@ -214,9 +214,16 @@ export default function App() {
       <div className="app__main">
         <header className="app__header">
           <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
-          <span className="app__subtitle">
-            {active?.kind === "terminal" ? `${active.shell} · ${active.cwd}` : ""}
-          </span>
+          {active?.kind === "terminal" && (
+            <>
+              <span className="app__crumb" aria-hidden="true">
+                /
+              </span>
+              <span className="app__subtitle" title={active.cwd}>
+                {active.cwd}
+              </span>
+            </>
+          )}
           {/* Says why the keyboard is where it is, rather than leaving it to be
               worked out from the composer collapsing. */}
           {onTerminal && shellState !== "unknown" && (
@@ -224,6 +231,7 @@ export default function App() {
               className={`app__badge app__badge--${shellState}`}
               title={active?.kind === "terminal" ? active.shell : undefined}
             >
+              <span className="app__led" aria-hidden="true" />
               {t(shellState === "running" ? "app.shell.running" : "app.shell.prompt")}
             </span>
           )}

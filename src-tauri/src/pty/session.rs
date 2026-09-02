@@ -1,4 +1,5 @@
 use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 use portable_pty::{Child, CommandBuilder, MasterPty, NativePtySystem, PtySize, PtySystem};
 use tauri::AppHandle;
@@ -10,7 +11,9 @@ pub struct PtySession {
     pub shell: String,
     pub cwd: String,
     master: Box<dyn MasterPty + Send>,
-    writer: Box<dyn Write + Send>,
+    /// Behind its own lock, so writing to one session does not hold the
+    /// registry that every other session goes through.
+    writer: Arc<Mutex<Box<dyn Write + Send>>>,
     child: Box<dyn Child + Send + Sync>,
     /// PID of the shell. `portable-pty` runs it through `setsid()`, so this PID
     /// is also the id of the PTY session -- which is what we terminate.
@@ -77,6 +80,7 @@ impl PtySession {
             .master
             .take_writer()
             .map_err(|e| format!("failed to write to pty: {e}"))?;
+        let writer = Arc::new(Mutex::new(writer));
 
         let pid = child.process_id();
         crate::agent::log(&format!("spawn session={id} shell={shell} integration={integrated}"));
@@ -93,11 +97,13 @@ impl PtySession {
         })
     }
 
-    pub fn write(&mut self, bytes: &[u8]) -> Result<(), String> {
-        self.writer
-            .write_all(bytes)
-            .and_then(|_| self.writer.flush())
-            .map_err(|e| format!("failed to write to pty: {e}"))
+    /// The end input is written to.
+    ///
+    /// Handed out rather than written through: a program that has stopped
+    /// reading its input fills the pty buffer and the write blocks. Holding the
+    /// registry for that long would stop every other terminal as well.
+    pub fn writer(&self) -> Arc<Mutex<Box<dyn Write + Send>>> {
+        self.writer.clone()
     }
 
     pub fn resize(&mut self, cols: u16, rows: u16) -> Result<(), String> {

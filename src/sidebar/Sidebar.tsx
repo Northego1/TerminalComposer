@@ -91,6 +91,16 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      {/* The window's own name, which no tab can change. */}
+      <div className="brand">
+        <span className="brand__mark" aria-hidden="true">
+          ❯
+        </span>
+        <span className="brand__word">
+          <i>Terminal </i>Composer
+        </span>
+      </div>
+
       <div className="sidebar__list" ref={listRef}>
         <div className="sidebar__group" data-group="terminal">
           {rows("terminal")}

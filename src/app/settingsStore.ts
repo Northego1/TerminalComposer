@@ -1,3 +1,4 @@
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { create } from "zustand";
 
 import { detectLanguage, type Language } from "../i18n/language";
@@ -9,6 +10,15 @@ export interface Settings {
   theme: ThemeName;
   fontFamily: string;
   fontSize: number;
+  /**
+   * Scale of the whole window, in percent.
+   *
+   * Not the terminal's font size, which is a separate setting: this magnifies
+   * the interface with it -- tabs, the composer, the viewer -- the way a
+   * browser's zoom does, because a display that needs bigger type needs it
+   * everywhere.
+   */
+  zoom: number;
   scrollback: number;
   /** How much of the window the composer may grow to, in percent. */
   composerMaxHeight: number;
@@ -39,6 +49,7 @@ export const DEFAULT_SETTINGS: Settings = {
   fontFamily:
     'ui-monospace, "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", monospace',
   fontSize: 13,
+  zoom: 100,
   scrollback: 10_000,
   composerMaxHeight: 40,
   shell: "",
@@ -80,6 +91,15 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
 /** Applies everything a setting change means outside React. */
 export function applySettingsToDocument(settings: Settings): void {
   applyTheme(settings.theme);
+  // The webview's own scale, so everything drawn in it follows -- including the
+  // terminal, which draws its glyphs itself and would ignore a CSS transform.
+  void getCurrentWebview()
+    .setZoom(settings.zoom / 100)
+    .catch(() => {});
+  // The composer's command line is drawn with these, so it matches the
+  // terminal instead of merely being monospace too.
+  document.documentElement.style.setProperty("--term-font-family", settings.fontFamily);
+  document.documentElement.style.setProperty("--term-font-size", `${settings.fontSize}px`);
   document.documentElement.style.setProperty(
     "--composer-max-height",
     `${settings.composerMaxHeight}vh`,

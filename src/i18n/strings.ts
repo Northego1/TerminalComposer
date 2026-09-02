@@ -7,8 +7,8 @@
  */
 export const EN = {
   "app.error.spawn": "Could not start the shell:",
-  "app.shell.prompt": "shell · waiting",
-  "app.shell.running": "shell · running",
+  "app.shell.prompt": "waiting",
+  "app.shell.running": "running",
 
   "sidebar.newTerminal": "New terminal (Ctrl+Shift+T)",
   "sidebar.closeTab": "Close tab",
@@ -53,6 +53,7 @@ export const EN = {
   "settings.fontFamily": "Font",
   "settings.fontFamily.system": "System monospace",
   "settings.fontSize": "Font size",
+  "settings.zoom": "Interface scale, %",
   "settings.scrollback": "Scrollback, lines",
   "settings.agentHooks": "Claude Code events",
   "settings.agentHooks.note":
@@ -80,8 +81,8 @@ export type StringKey = keyof typeof EN;
 
 export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
-  "app.shell.prompt": "shell · ждёт",
-  "app.shell.running": "shell · выполняется",
+  "app.shell.prompt": "ждёт",
+  "app.shell.running": "выполняется",
 
   "sidebar.newTerminal": "Новый терминал (Ctrl+Shift+T)",
   "sidebar.closeTab": "Закрыть вкладку",
@@ -126,6 +127,7 @@ export const RU: Record<StringKey, string> = {
   "settings.fontFamily": "Шрифт",
   "settings.fontFamily.system": "Системный моноширинный",
   "settings.fontSize": "Размер шрифта",
+  "settings.zoom": "Масштаб интерфейса, %",
   "settings.scrollback": "Глубина scrollback, строк",
   "settings.agentHooks": "События Claude Code",
   "settings.agentHooks.note":

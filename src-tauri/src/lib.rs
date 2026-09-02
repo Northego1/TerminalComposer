@@ -6,6 +6,7 @@
 
 mod agent;
 mod clipboard;
+mod private;
 mod pty;
 mod shell;
 mod state;
@@ -30,6 +31,7 @@ pub fn run() {
             state::state_read,
             state::state_write,
             viewer::read_file,
+            viewer::open_external,
             viewer::resolve_paths,
             viewer::complete_path,
             viewer::complete_command,

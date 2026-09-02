@@ -19,22 +19,28 @@ interface Palette {
   text: string;
   textDim: string;
   accent: string;
+  /** The second stop of the mark's gradient. */
+  accentDeep: string;
+  /** A shell waiting for a command, which is good news rather than a warning. */
+  ready: string;
   terminal: ITheme;
 }
 
 export const THEMES: Record<ThemeName, Palette> = {
   dark: {
-    bg: "#0b0b0f",
-    bgPanel: "#101014",
-    bgElevated: "#16161c",
-    border: "#26262f",
-    borderActive: "#3d4a63",
-    surface: "#1b1b22",
-    text: "#d7d7dc",
-    textDim: "#7c7c8a",
+    bg: "#0a0a0e",
+    bgPanel: "#0e0e13",
+    bgElevated: "#14141b",
+    border: "#1e1e27",
+    borderActive: "#3b4a66",
+    surface: "#191921",
+    text: "#dcdce2",
+    textDim: "#75758a",
     accent: "#8ab4f8",
+    accentDeep: "#6f8ff0",
+    ready: "#6fd7a5",
     terminal: {
-      background: "#101014",
+      background: "#0e0e13",
       foreground: "#d7d7dc",
       cursor: "#8ab4f8",
       selectionBackground: "#2f3a4d",
@@ -50,6 +56,8 @@ export const THEMES: Record<ThemeName, Palette> = {
     text: "#1d1d21",
     textDim: "#6b6b76",
     accent: "#1a63c8",
+    accentDeep: "#1550a8",
+    ready: "#1f9d63",
     terminal: {
       background: "#ffffff",
       foreground: "#1d1d21",
@@ -71,5 +79,7 @@ export function applyTheme(name: ThemeName): void {
   root.style.setProperty("--text", palette.text);
   root.style.setProperty("--text-dim", palette.textDim);
   root.style.setProperty("--accent", palette.accent);
+  root.style.setProperty("--accent-deep", palette.accentDeep);
+  root.style.setProperty("--ready", palette.ready);
   root.style.colorScheme = name;
 }

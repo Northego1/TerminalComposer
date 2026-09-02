@@ -105,8 +105,8 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
     return true;
   }
 
-  // Zoom, the way a terminal means it: the terminal's own font size, which is
-  // a setting, so it survives a restart like every other one.
+  // Zoom the whole window, the way a browser does it. A setting, so it
+  // survives a restart like every other one.
   if (code === "Equal" || code === "NumpadAdd") return zoom(1);
   if (code === "Minus" || code === "NumpadSubtract") return zoom(-1);
   if (code === "Digit0" || code === "Numpad0") return zoom(0);
@@ -114,18 +114,18 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
   return false;
 }
 
-const FONT_SIZE_RANGE = { min: 8, max: 32 };
+export const ZOOM = { min: 50, max: 200, step: 10 };
 
 function zoom(direction: 1 | -1 | 0): boolean {
   const { settings, update } = useSettingsStore.getState();
-  const fontSize =
+  const next =
     direction === 0
-      ? DEFAULT_SETTINGS.fontSize
+      ? DEFAULT_SETTINGS.zoom
       : Math.min(
-          Math.max(settings.fontSize + direction, FONT_SIZE_RANGE.min),
-          FONT_SIZE_RANGE.max,
+          Math.max(settings.zoom + direction * ZOOM.step, ZOOM.min),
+          ZOOM.max,
         );
-  if (fontSize !== settings.fontSize) update({ fontSize });
+  if (next !== settings.zoom) update({ zoom: next });
   return true;
 }
 

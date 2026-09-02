@@ -40,6 +40,15 @@ if [[ -o interactive ]] && [[ -z "$TERMINAL_COMPOSER_MARKS" ]]; then
     # Newlines are folded and the text is capped: this is a history entry, not
     # a transcript, and the mark has to stay one line.
     local command=${1//$'\n'/ }
+
+    # A command typed with a leading space is one the user asked the shell not
+    # to remember. The mark still goes out -- the terminal has to know something
+    # is running -- but it goes out empty.
+    if [[ "$1" == ' '* ]]; then
+      _terminal_composer_mark "C;"
+      return
+    fi
+
     _terminal_composer_mark "C;${command[1,500]}"
   }
 

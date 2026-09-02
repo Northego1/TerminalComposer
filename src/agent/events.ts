@@ -23,6 +23,9 @@ interface AgentEvent {
 }
 
 const STATE_BY_HOOK: Record<string, AgentState> = {
+  // An agent that has just started is waiting for its first message, and that
+  // message is written in the composer.
+  SessionStart: "waiting",
   UserPromptSubmit: "working",
   Stop: "waiting",
   Notification: "attention",

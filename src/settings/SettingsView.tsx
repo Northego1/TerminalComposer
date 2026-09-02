@@ -4,6 +4,7 @@ import { hooksInstalled } from "../agent/events";
 
 import { useSettingsStore, type Settings } from "../app/settingsStore";
 import { LANGUAGE_NAMES, LANGUAGES, useT, type StringKey } from "../i18n";
+import { ZOOM } from "../app/useGlobalHotkeys";
 import { NumberField } from "./NumberField";
 
 type Tab = "general" | "terminal" | "composer";
@@ -112,6 +113,17 @@ export function SettingsView() {
                 min={8}
                 max={32}
                 onChange={(value) => set("fontSize", value)}
+              />
+            </div>
+
+            <div className="settings__row">
+              <span>{t("settings.zoom")}</span>
+              <NumberField
+                value={settings.zoom}
+                min={ZOOM.min}
+                max={ZOOM.max}
+                step={ZOOM.step}
+                onChange={(value) => set("zoom", value)}
               />
             </div>
 

@@ -19,7 +19,10 @@ const ZSHENV: &str = include_str!("../shell/zsh/.zshenv");
 /// Writes the integration out and returns the directory to use as `ZDOTDIR`.
 pub fn prepare_zsh() -> Option<PathBuf> {
     let directory = integration_dir().join("zsh");
-    std::fs::create_dir_all(&directory).ok()?;
+    // The user's shell executes what is written here, so nobody else may write
+    // it: without XDG_RUNTIME_DIR this lands in the shared temporary directory
+    // under a name that can be guessed.
+    crate::private::create_dir(&directory).ok()?;
     // Only .zshenv is shadowed; it hands ZDOTDIR back and lets zsh read the
     // rest of the user's startup files itself.
     std::fs::write(directory.join(".zshenv"), ZSHENV).ok()?;
@@ -40,7 +43,7 @@ pub fn shell_name(shell: &str) -> Option<String> {
 /// Where a session's shell writes the list of what it can run.
 pub fn commands_file(session_id: &str) -> PathBuf {
     let directory = integration_dir().join("commands");
-    let _ = std::fs::create_dir_all(&directory);
+    let _ = crate::private::create_dir(&directory);
     directory.join(session_id)
 }
 

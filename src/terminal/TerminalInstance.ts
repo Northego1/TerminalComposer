@@ -38,6 +38,8 @@ export class TerminalInstance {
   private shell: ShellState = "unknown";
   private readonly shellStateHandlers = new Set<(state: ShellState) => void>();
   private readonly commandHandlers = new Set<(command: string) => void>();
+  /** Temporary: the last character we fed to xterm ourselves. */
+  private lastSent: { data: string; at: number } | null = null;
 
   private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
@@ -61,6 +63,7 @@ export class TerminalInstance {
     this.watchShellState();
     this.linkPaths();
     this.term.open(this.element);
+    this.watchInputEvents();
   }
 
   static async create(
@@ -184,6 +187,50 @@ export class TerminalInstance {
    * whatever piles up behind it guarantees order and cuts the number of round
    * trips at the same time.
    */
+  /**
+   * Every other way a character can reach xterm.
+   *
+   * The key handler is not the only door. WebKitGTK can also commit text
+   * through the hidden textarea, and when that happens after the key handler
+   * has already sent the same character the shell receives it twice. Listening
+   * on the container in the capture phase puts us ahead of xterm's own
+   * listeners, so an echo can be recognised and stopped before it is sent.
+   *
+   * Only an exact repeat of what we just sent, within a moment of sending it,
+   * is dropped -- a key held down produces its own keydown each time, so
+   * genuine repeats survive.
+   */
+  private watchInputEvents(): void {
+    const types = [
+      "beforeinput",
+      "input",
+      "keypress",
+      "compositionstart",
+      "compositionupdate",
+      "compositionend",
+    ];
+    for (const type of types) {
+      this.element.addEventListener(type, (event) => this.suppressEcho(type, event), true);
+    }
+  }
+
+  private suppressEcho(type: string, event: Event): void {
+    const data =
+      "data" in event && typeof (event as InputEvent).data === "string"
+        ? ((event as InputEvent).data as string)
+        : "";
+    const sent = this.lastSent;
+    const echo =
+      sent !== null && data !== "" && data === sent.data && Date.now() - sent.at < 200;
+
+    if (!echo || (type !== "beforeinput" && type !== "input")) return;
+
+    this.lastSent = null;
+    event.stopImmediatePropagation();
+    event.preventDefault();
+    if (this.term.textarea) this.term.textarea.value = "";
+  }
+
   private writeInput(data: string): void {
     if (!data || this.disposed) return;
     this.pendingInput += data;
@@ -239,6 +286,7 @@ export class TerminalInstance {
     // Without this the character would also reach the hidden textarea and be
     // sent a second time.
     event.preventDefault();
+    this.lastSent = { data, at: Date.now() };
     this.term.input(data);
     return false;
   }
