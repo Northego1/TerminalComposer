@@ -74,9 +74,17 @@ export function useCompletion(editor: Editor | null, commandLine: boolean) {
       token.current = current;
 
       void suggestionsFor(sessionId, current, pathShaped)
-        .then((items) => {
+        .then((all) => {
           // The caret may have moved on while this was in flight.
           if (token.current !== current) return;
+
+          // A word already typed in full has nothing to complete. Left in the
+          // list it would be what Enter picks, so a finished command would be
+          // "completed" into itself instead of being run.
+          const finished = all.some((item) => item.label === current.text);
+          if (finished && !forced) return close();
+
+          const items = all.filter((item) => item.label !== current.text);
           if (!items.length) return close();
           setState({ items, selected: 0, anchor: caretAnchor(editor) });
         })
