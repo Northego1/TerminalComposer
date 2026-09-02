@@ -11,7 +11,7 @@ import { create } from "zustand";
  *   - the app starts with the composer active;
  *   - a mouse press inside a pane activates it;
  *   - Escape in the composer jumps to the terminal;
- *   - Ctrl+Alt+Up / Ctrl+Alt+Down switch panes from anywhere;
+ *   - Ctrl+Shift+Up / Ctrl+Shift+Down switch panes from anywhere;
  *   - submitting a message keeps the composer active.
  *
  * The pane-switch keys are handled on the capture phase (see `useFocusHotkeys`)

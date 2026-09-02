@@ -18,6 +18,8 @@ interface GlobalHotkeys {
  *
  * Ctrl+Shift is the terminal convention precisely because programs running
  * inside a terminal never claim it, so nothing here is taken away from them.
+ * It is also free at the desktop level, unlike Ctrl+Alt with the arrows, which
+ * GNOME reserves for switching workspaces.
  */
 export function useGlobalHotkeys(handlers: GlobalHotkeys): void {
   const current = useRef(handlers);
@@ -44,11 +46,11 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
   const { ctrlKey, shiftKey, altKey, metaKey, code } = event;
   if (metaKey) return false;
 
-  // Panes.
-  if (ctrlKey && altKey && !shiftKey) {
-    if (event.key === "ArrowUp") return focus("terminal");
-    if (event.key === "ArrowDown") return focus("composer");
-    return false;
+  // Panes. Ctrl+Shift rather than Ctrl+Alt, because GNOME takes Ctrl+Alt with
+  // the arrows for switching workspaces and the app never sees it.
+  if (ctrlKey && shiftKey && !altKey) {
+    if (code === "ArrowUp") return focus("terminal");
+    if (code === "ArrowDown") return focus("composer");
   }
 
   // Jump to a tab by position.
