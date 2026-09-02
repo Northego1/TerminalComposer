@@ -4,6 +4,7 @@
   --bg-elevated: #16161c;
   --border: #26262f;
   --border-active: #3d4a63;
+  --surface: #1b1b22;
   --text: #d7d7dc;
   --text-dim: #7c7c8a;
   --accent: #8ab4f8;
@@ -81,7 +82,17 @@ body {
   color: var(--text);
 }
 
+.sidebar__icon {
+  flex: none;
+  width: 16px;
+  margin-right: 6px;
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
 .sidebar__select {
+  display: flex;
+  align-items: center;
   flex: 1;
   min-width: 0;
   padding: 7px 4px 7px 10px;
@@ -165,20 +176,20 @@ body {
 }
 
 .sidebar__add {
-  padding: 6px 10px;
+  margin-top: 2px;
+  padding: 8px 10px;
   border: none;
   border-radius: 8px;
-  background: transparent;
+  background: var(--surface);
   color: var(--text-dim);
   font: inherit;
   font-size: 16px;
   line-height: 1;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
 }
 
 .sidebar__add:hover {
-  background: var(--bg-panel);
   color: var(--text);
 }
 
@@ -214,12 +225,12 @@ body {
 }
 
 /* Terminals stay mounted while settings are open, so nothing is lost. */
-.app__terminals {
-  position: relative;
+/* Tabs stay mounted while another is shown, so nothing is lost. */
+.app__pane {
   height: 100%;
 }
 
-.app__terminals--hidden {
+.app__pane--hidden {
   display: none;
 }
 
@@ -250,6 +261,10 @@ body {
 
 .terminal-surface {
   height: 100%;
+}
+
+.app__composer--hidden {
+  display: none;
 }
 
 .app__composer {

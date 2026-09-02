@@ -1,6 +1,6 @@
 /**
- * What was open last time: the terminals, their order and names, and what was
- * typed into each composer.
+ * What was open last time: the tabs, their order and names, and what was typed
+ * into each composer.
  *
  * Saves are debounced because they are triggered by typing. The snapshot is
  * taken from the live stores, so there is no second copy of this state to keep
@@ -8,18 +8,19 @@
  */
 import { loadComposerState, type ComposerState } from "../composer/state/drafts";
 import { readDocument, writeDocument } from "./persistence";
-import { useSessionsStore } from "./sessionsStore";
+import { useTabsStore, type Tab } from "./tabsStore";
 
 const SAVE_DEBOUNCE_MS = 700;
 
-export interface PersistedSession {
+export interface PersistedTab {
+  kind: Tab["kind"];
   name: string;
-  cwd: string;
-  composer: ComposerState;
+  cwd?: string;
+  composer?: ComposerState;
 }
 
 export interface Workspace {
-  sessions: PersistedSession[];
+  tabs: PersistedTab[];
   activeIndex: number;
 }
 
@@ -35,16 +36,21 @@ export function scheduleWorkspaceSave(): void {
 }
 
 function snapshot(): Workspace {
-  const { sessions, activeId } = useSessionsStore.getState();
+  const { tabs, activeId } = useTabsStore.getState();
   return {
-    sessions: sessions.map((session) => ({
-      name: session.name,
-      cwd: session.cwd,
-      composer: loadComposerState(session.id),
-    })),
+    tabs: tabs.map((tab) =>
+      tab.kind === "terminal"
+        ? {
+            kind: tab.kind,
+            name: tab.name,
+            cwd: tab.cwd,
+            composer: loadComposerState(tab.id),
+          }
+        : { kind: tab.kind, name: tab.name },
+    ),
     activeIndex: Math.max(
       0,
-      sessions.findIndex((session) => session.id === activeId),
+      tabs.findIndex((tab) => tab.id === activeId),
     ),
   };
 }

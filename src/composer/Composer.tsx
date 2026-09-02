@@ -3,7 +3,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
-import { useSessionsStore } from "../app/sessionsStore";
+import { useTabsStore } from "../app/tabsStore";
 import { scheduleWorkspaceSave } from "../app/workspace";
 import { t as translate, useT } from "../i18n";
 import { isEmptyMessage, type Message } from "../message/types";
@@ -222,8 +222,8 @@ export function Composer({
 
   // Each terminal has its own draft and its own history: what is in the editor
   // belongs to the session that is open, and comes back when it is again.
-  const sessions = useSessionsStore((state) => state.sessions);
-  const activeId = useSessionsStore((state) => state.activeId);
+  const tabs = useTabsStore((state) => state.tabs);
+  const activeId = useTabsStore((state) => state.activeId);
 
   useEffect(() => {
     if (!editor || loadedId.current === activeId) return;
@@ -243,8 +243,8 @@ export function Composer({
   }, [editor, activeId]);
 
   useEffect(() => {
-    pruneComposerStates(sessions.map((session) => session.id));
-  }, [sessions]);
+    pruneComposerStates(tabs.map((tab) => tab.id));
+  }, [tabs]);
 
   useEffect(() => {
     if (!editor) return;

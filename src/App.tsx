@@ -1,16 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "./app/focusStore";
-import { forEachInstance, getInstance, useSessionsStore } from "./app/sessionsStore";
+import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
-import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
+import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
 import { Composer } from "./composer/Composer";
-import { getAdapter } from "./message/adapters/registry";
-import { isEmptyMessage, type Message } from "./message/types";
-import { useViewStore } from "./app/viewStore";
 import { saveComposerState } from "./composer/state/drafts";
 import { useT } from "./i18n";
+import { getAdapter } from "./message/adapters/registry";
+import { isEmptyMessage, type Message } from "./message/types";
 import { SettingsView } from "./settings/SettingsView";
 import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
@@ -21,8 +20,8 @@ const PEEK_HEIGHT = 44;
 const SLIDE_MS = 160;
 
 /**
- * Layout: terminals on the left, the active one on the right with the composer
- * under it.
+ * Layout: tabs on the left, the active one on the right. A terminal tab also
+ * gets the composer under it; a settings tab does not.
  *
  * There is one input mode, not two: whichever pane is active gets the keyboard,
  * and the composer slides down to a peeking strip while the terminal has it.
@@ -33,17 +32,16 @@ const SLIDE_MS = 160;
  *   Composer -> Message -> Adapter -> TerminalInstance (PTY)
  *
  * The composer produces the message, the adapter decides how it is written,
- * and neither knows about the other. One composer serves every session and
+ * and neither knows about the other. One composer serves every terminal and
  * always talks to the active one.
  */
 export default function App() {
-  const sessions = useSessionsStore((state) => state.sessions);
-  const activeId = useSessionsStore((state) => state.activeId);
-  const error = useSessionsStore((state) => state.error);
+  const tabs = useTabsStore((state) => state.tabs);
+  const activeId = useTabsStore((state) => state.activeId);
+  const error = useTabsStore((state) => state.error);
   const settings = useSettingsStore((state) => state.settings);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
-  const view = useViewStore((state) => state.view);
   const [searching, setSearching] = useState(false);
   const t = useT();
   useGlobalHotkeys({ openSearch: () => setSearching(true) });
@@ -58,8 +56,8 @@ export default function App() {
     forEachInstance((instance) => instance.applySettings(settings));
   }, [settings]);
 
-  // Anything that changes the terminal list is worth remembering for next time.
-  useEffect(() => useSessionsStore.subscribe(scheduleWorkspaceSave), []);
+  // Anything that changes the tabs is worth remembering for next time.
+  useEffect(() => useTabsStore.subscribe(scheduleWorkspaceSave), []);
 
   useEffect(() => {
     const instance = getInstance(activeId);
@@ -68,26 +66,22 @@ export default function App() {
     else instance.blur();
   }, [pane, activeId]);
 
-  const handleSubmit = useCallback(
-    (message: Message) => {
-      const instance = getInstance(useSessionsStore.getState().activeId);
-      if (!instance || isEmptyMessage(message)) return;
-      void instance.submit(getAdapter().serialize(message, instance.capabilities));
-    },
-    [],
-  );
+  const handleSubmit = useCallback((message: Message) => {
+    const instance = getInstance(useTabsStore.getState().activeId);
+    if (!instance || isEmptyMessage(message)) return;
+    void instance.submit(getAdapter().serialize(message, instance.capabilities));
+  }, []);
 
   const handleAbort = useCallback(() => {
-    getInstance(useSessionsStore.getState().activeId)?.submit(getAdapter().abort());
+    getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().abort());
   }, []);
 
   const handleInterrupt = useCallback(() => {
-    getInstance(useSessionsStore.getState().activeId)?.submit(
-      getAdapter().interrupt(),
-    );
+    getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().interrupt());
   }, []);
 
-  const active = sessions.find((session) => session.id === activeId);
+  const active = tabs.find((tab) => tab.id === activeId);
+  const onTerminal = active?.kind === "terminal";
   const collapsed = pane === "terminal";
   const { height, animate, contentRef } = useComposerSlide(collapsed);
 
@@ -96,76 +90,73 @@ export default function App() {
       <Sidebar />
 
       <div className="app__main">
-        {view === "terminals" && (
-          <header className="app__header">
-            <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
-            <span className="app__subtitle">
-              {active ? `${active.shell} · ${active.cwd}` : "…"}
-            </span>
-          </header>
-        )}
+        <header className="app__header">
+          <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
+          <span className="app__subtitle">
+            {active?.kind === "terminal" ? `${active.shell} · ${active.cwd}` : ""}
+          </span>
+        </header>
 
         <main className="app__body">
-          <div
-            className={`app__terminals${
-              view === "settings" ? " app__terminals--hidden" : ""
-            }`}
-          >
-            {searching && (
-              <TerminalSearch
-                onClose={() => {
-                  setSearching(false);
-                  focusPane("terminal");
-                }}
-              />
-            )}
-            {error && (
-              <div className="app__error">
-                {t("app.error.spawn")} {error}
-              </div>
-            )}
-            {sessions.map((session) => {
-              const instance = getInstance(session.id);
-              return (
-                instance && (
-                  <TerminalView
-                    key={session.id}
-                    instance={instance}
-                    active={session.id === activeId}
-                  />
-                )
-              );
-            })}
-          </div>
+          {searching && onTerminal && (
+            <TerminalSearch
+              onClose={() => {
+                setSearching(false);
+                focusPane("terminal");
+              }}
+            />
+          )}
+          {error && (
+            <div className="app__error">
+              {t("app.error.spawn")} {error}
+            </div>
+          )}
 
-          {view === "settings" && <SettingsView />}
+          {/* Every tab stays mounted; only the active one is shown. */}
+          {tabs.map((tab) => {
+            const isActive = tab.id === activeId;
+            if (tab.kind === "settings") {
+              return (
+                <div
+                  key={tab.id}
+                  className={`app__pane${isActive ? "" : " app__pane--hidden"}`}
+                >
+                  <SettingsView />
+                </div>
+              );
+            }
+            const instance = getInstance(tab.id);
+            return (
+              instance && (
+                <TerminalView key={tab.id} instance={instance} active={isActive} />
+              )
+            );
+          })}
         </main>
 
-        {view === "terminals" && (
-          <footer
-            className={[
-              "app__composer",
-              collapsed ? "app__composer--peek" : "",
-              animate ? "app__composer--animate" : "",
-            ]
-              .filter(Boolean)
-              .join(" ")}
-            style={{ height: collapsed ? PEEK_HEIGHT : height }}
-            title={collapsed ? t("composer.expand") : undefined}
-            onMouseDown={collapsed ? () => focusPane("composer") : undefined}
-          >
-            <div className="app__composer-inner" ref={contentRef}>
-              <Composer
-                onSubmit={handleSubmit}
-                onAbort={handleAbort}
-                onInterrupt={handleInterrupt}
-                disabled={!activeId}
-              />
-            </div>
-          </footer>
-        )}
+        <footer
+          className={[
+            "app__composer",
+            onTerminal ? "" : "app__composer--hidden",
+            collapsed ? "app__composer--peek" : "",
+            animate ? "app__composer--animate" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")}
+          style={{ height: collapsed ? PEEK_HEIGHT : height }}
+          title={collapsed ? t("composer.expand") : undefined}
+          onMouseDown={collapsed ? () => focusPane("composer") : undefined}
+        >
+          <div className="app__composer-inner" ref={contentRef}>
+            <Composer
+              onSubmit={handleSubmit}
+              onAbort={handleAbort}
+              onInterrupt={handleInterrupt}
+              disabled={!onTerminal}
+            />
+          </div>
+        </footer>
       </div>
-
     </div>
   );
 }
@@ -173,13 +164,13 @@ export default function App() {
 /**
  * Startup runs once per process, guarded outside React: StrictMode remounts the
  * component and so does Fast Refresh, and each remount would otherwise open
- * another set of terminals.
+ * another set of tabs.
  */
 let starting = false;
 
 /**
- * Settings first, because terminals are created with them, then the terminals
- * that were open last time -- or a fresh one on a first run.
+ * Settings first, because terminals are created with them, then the tabs that
+ * were open last time -- or a fresh terminal on a first run.
  */
 async function start(): Promise<void> {
   if (starting) return;
@@ -189,18 +180,17 @@ async function start(): Promise<void> {
   applySettingsToDocument(useSettingsStore.getState().settings);
 
   const workspace = await readWorkspace();
-  const sessions = useSessionsStore.getState();
+  const tabs = useTabsStore.getState();
 
-  if (workspace?.sessions.length) {
-    await sessions.restore(
-      workspace.sessions.map(({ name, cwd }) => ({ name, cwd })),
-      workspace.activeIndex,
-      (id, index) => saveComposerState(id, workspace.sessions[index].composer),
-    );
+  if (workspace?.tabs.length) {
+    await tabs.restore(workspace.tabs, workspace.activeIndex, (id, index) => {
+      const composer = workspace.tabs[index]?.composer;
+      if (composer) saveComposerState(id, composer);
+    });
     return;
   }
 
-  await sessions.open();
+  await tabs.openTerminal();
 }
 
 /**

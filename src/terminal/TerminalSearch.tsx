@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { getInstance, useSessionsStore } from "../app/sessionsStore";
+import { getInstance, useTabsStore } from "../app/tabsStore";
 import { useT } from "../i18n";
 
 interface TerminalSearchProps {
@@ -9,7 +9,7 @@ interface TerminalSearchProps {
 
 /** Search over the active terminal's scrollback, driven by xterm's search addon. */
 export function TerminalSearch({ onClose }: TerminalSearchProps) {
-  const activeId = useSessionsStore((state) => state.activeId);
+  const activeId = useTabsStore((state) => state.activeId);
   const inputRef = useRef<HTMLInputElement>(null);
   const t = useT();
   const [term, setTerm] = useState("");

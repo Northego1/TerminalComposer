@@ -1,26 +1,21 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 
-import { useSessionsStore } from "../app/sessionsStore";
-import { useViewStore } from "../app/viewStore";
+import { useTabsStore } from "../app/tabsStore";
 import { useT } from "../i18n";
 
 /** Distance the pointer must travel before a press turns into a reorder. */
 const DRAG_THRESHOLD = 4;
 
-/**
- * The left rail: the open terminals, and settings as one more entry next to
- * them rather than a dialog over everything.
- */
+/** The left rail: every open tab, terminal or settings, and how to add more. */
 export function Sidebar() {
-  const sessions = useSessionsStore((state) => state.sessions);
-  const activeId = useSessionsStore((state) => state.activeId);
-  const activate = useSessionsStore((state) => state.activate);
-  const open = useSessionsStore((state) => state.open);
-  const close = useSessionsStore((state) => state.close);
-  const rename = useSessionsStore((state) => state.rename);
-  const reorder = useSessionsStore((state) => state.reorder);
-  const view = useViewStore((state) => state.view);
-  const show = useViewStore((state) => state.show);
+  const tabs = useTabsStore((state) => state.tabs);
+  const activeId = useTabsStore((state) => state.activeId);
+  const activate = useTabsStore((state) => state.activate);
+  const openTerminal = useTabsStore((state) => state.openTerminal);
+  const openSettings = useTabsStore((state) => state.openSettings);
+  const close = useTabsStore((state) => state.close);
+  const rename = useTabsStore((state) => state.rename);
+  const reorder = useTabsStore((state) => state.reorder);
   const t = useT();
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -57,12 +52,12 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar__list" ref={listRef}>
-        {sessions.map((session, index) => (
+        {tabs.map((tab, index) => (
           <div
-            key={session.id}
+            key={tab.id}
             className={[
               "sidebar__item",
-              session.id === activeId ? "sidebar__item--active" : "",
+              tab.id === activeId ? "sidebar__item--active" : "",
               dragging?.from === index ? "sidebar__item--dragging" : "",
               dragging && dragging.from !== index && dragging.to === index
                 ? "sidebar__item--drop"
@@ -71,14 +66,20 @@ export function Sidebar() {
               .filter(Boolean)
               .join(" ")}
             onPointerDown={(event) => startDrag(event, index)}
+            // Middle click closes a tab, the way it does in a browser.
+            onAuxClick={(event) => {
+              if (event.button !== 1) return;
+              event.preventDefault();
+              void close(tab.id);
+            }}
           >
-            {renaming === session.id ? (
+            {renaming === tab.id ? (
               <input
                 className="sidebar__rename"
                 autoFocus
-                defaultValue={session.name}
+                defaultValue={tab.name}
                 onBlur={(event) => {
-                  rename(session.id, event.target.value);
+                  rename(tab.id, event.target.value);
                   setRenaming(null);
                 }}
                 onKeyDown={(event) => {
@@ -90,21 +91,21 @@ export function Sidebar() {
               <button
                 type="button"
                 className="sidebar__select"
-                onClick={() => {
-                  activate(session.id);
-                  show("terminals");
-                }}
-                onDoubleClick={() => setRenaming(session.id)}
-                title={`${session.shell} · ${session.cwd}`}
+                onClick={() => activate(tab.id)}
+                onDoubleClick={() => setRenaming(tab.id)}
+                title={tab.kind === "terminal" ? `${tab.shell} · ${tab.cwd}` : tab.name}
               >
-                {session.name}
+                <span className="sidebar__icon" aria-hidden="true">
+                  {tab.kind === "terminal" ? "›_" : "⚙"}
+                </span>
+                {tab.name}
               </button>
             )}
             <button
               type="button"
               className="sidebar__close"
-              onClick={() => void close(session.id)}
-              title={t("sidebar.closeTerminal")}
+              onClick={() => void close(tab.id)}
+              title={t("sidebar.closeTab")}
             >
               ×
             </button>
@@ -114,7 +115,7 @@ export function Sidebar() {
         <button
           type="button"
           className="sidebar__add"
-          onClick={() => void open()}
+          onClick={() => void openTerminal()}
           title={t("sidebar.newTerminal")}
         >
           +
@@ -123,12 +124,11 @@ export function Sidebar() {
 
       <button
         type="button"
-        className={`sidebar__settings${
-          view === "settings" ? " sidebar__settings--active" : ""
-        }`}
-        onClick={() => show("settings")}
+        className="sidebar__settings"
+        onClick={() => openSettings()}
+        title={t("sidebar.newSettings")}
       >
-        <span aria-hidden="true">⚙</span> {t("sidebar.settings")}
+        <span aria-hidden="true">⚙</span> {t("settings.title")}
       </button>
     </aside>
   );

@@ -14,6 +14,8 @@ interface Palette {
   bgElevated: string;
   border: string;
   borderActive: string;
+  /** A block that reads as a surface without competing with the content. */
+  surface: string;
   text: string;
   textDim: string;
   accent: string;
@@ -27,6 +29,7 @@ export const THEMES: Record<ThemeName, Palette> = {
     bgElevated: "#16161c",
     border: "#26262f",
     borderActive: "#3d4a63",
+    surface: "#1b1b22",
     text: "#d7d7dc",
     textDim: "#7c7c8a",
     accent: "#8ab4f8",
@@ -43,6 +46,7 @@ export const THEMES: Record<ThemeName, Palette> = {
     bgElevated: "#ffffff",
     border: "#dcdce3",
     borderActive: "#9ab4e0",
+    surface: "#e7e7ee",
     text: "#1d1d21",
     textDim: "#6b6b76",
     accent: "#1a63c8",
@@ -63,6 +67,7 @@ export function applyTheme(name: ThemeName): void {
   root.style.setProperty("--bg-elevated", palette.bgElevated);
   root.style.setProperty("--border", palette.border);
   root.style.setProperty("--border-active", palette.borderActive);
+  root.style.setProperty("--surface", palette.surface);
   root.style.setProperty("--text", palette.text);
   root.style.setProperty("--text-dim", palette.textDim);
   root.style.setProperty("--accent", palette.accent);

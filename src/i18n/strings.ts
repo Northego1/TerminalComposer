@@ -9,7 +9,8 @@ export const EN = {
   "app.error.spawn": "Could not start the shell:",
 
   "sidebar.newTerminal": "New terminal (Ctrl+Shift+T)",
-  "sidebar.closeTerminal": "Close terminal",
+  "sidebar.closeTab": "Close tab",
+  "sidebar.newSettings": "Open settings in a new tab",
   "sidebar.settings": "Settings",
   "sidebar.terminalName": "Terminal {n}",
 
@@ -62,7 +63,8 @@ export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
 
   "sidebar.newTerminal": "Новый терминал (Ctrl+Shift+T)",
-  "sidebar.closeTerminal": "Закрыть терминал",
+  "sidebar.closeTab": "Закрыть вкладку",
+  "sidebar.newSettings": "Открыть настройки новой вкладкой",
   "sidebar.settings": "Настройки",
   "sidebar.terminalName": "Терминал {n}",
 

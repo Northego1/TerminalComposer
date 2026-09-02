@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useFocusStore } from "./focusStore";
-import { getInstance, useSessionsStore } from "./sessionsStore";
+import { getInstance, useTabsStore } from "./tabsStore";
 
 interface GlobalHotkeys {
   openSearch: () => void;
@@ -39,7 +39,7 @@ export function useGlobalHotkeys(handlers: GlobalHotkeys): void {
 }
 
 function route(event: KeyboardEvent, openSearch: () => void): boolean {
-  const sessions = useSessionsStore.getState();
+  const tabs = useTabsStore.getState();
   const { ctrlKey, shiftKey, altKey, metaKey, code } = event;
   if (metaKey) return false;
 
@@ -50,11 +50,11 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
     return false;
   }
 
-  // Jump to a terminal by position.
+  // Jump to a tab by position.
   if (altKey && !ctrlKey && !shiftKey && /^Digit[1-9]$/.test(code)) {
-    const session = sessions.sessions[Number(code.slice(5)) - 1];
-    if (!session) return false;
-    sessions.activate(session.id);
+    const tab = tabs.tabs[Number(code.slice(5)) - 1];
+    if (!tab) return false;
+    tabs.activate(tab.id);
     return true;
   }
 
@@ -63,11 +63,11 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
   if (shiftKey) {
     switch (code) {
       case "KeyT":
-        void sessions.open();
+        void tabs.openTerminal();
         return true;
       case "KeyW":
-        if (!sessions.activeId) return false;
-        void sessions.close(sessions.activeId);
+        if (!tabs.activeId) return false;
+        void tabs.close(tabs.activeId);
         return true;
       case "Tab":
         return step(-1);
@@ -95,16 +95,16 @@ function focus(pane: "terminal" | "composer"): boolean {
 }
 
 function step(direction: 1 | -1): boolean {
-  const { sessions, activeId, activate } = useSessionsStore.getState();
-  if (sessions.length < 2) return true;
-  const index = sessions.findIndex((session) => session.id === activeId);
-  const next = (index + direction + sessions.length) % sessions.length;
-  activate(sessions[next].id);
+  const { tabs, activeId, activate } = useTabsStore.getState();
+  if (tabs.length < 2) return true;
+  const index = tabs.findIndex((tab) => tab.id === activeId);
+  const next = (index + direction + tabs.length) % tabs.length;
+  activate(tabs[next].id);
   return true;
 }
 
 function copySelection(): boolean {
-  const selection = getInstance(useSessionsStore.getState().activeId)?.selection();
+  const selection = getInstance(useTabsStore.getState().activeId)?.selection();
   if (!selection) return false;
   void import("@tauri-apps/plugin-clipboard-manager").then(({ writeText }) =>
     writeText(selection),
@@ -113,7 +113,7 @@ function copySelection(): boolean {
 }
 
 async function pasteIntoTerminal(): Promise<void> {
-  const instance = getInstance(useSessionsStore.getState().activeId);
+  const instance = getInstance(useTabsStore.getState().activeId);
   if (!instance) return;
   const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
   const text = await readText().catch(() => "");
