@@ -49,6 +49,8 @@ export class TerminalInstance {
       scrollback: settings.scrollback,
       theme: THEMES[settings.theme].terminal,
       cursorBlink: true,
+      // An idle terminal shows where the cursor is without insisting on it.
+      cursorInactiveStyle: "outline",
       allowProposedApi: true,
     });
     this.fitAddon = new FitAddon();
@@ -140,12 +142,25 @@ export class TerminalInstance {
     }
   }
 
+  /**
+   * Whether this terminal has the keyboard.
+   *
+   * Blinking is what the eye reads as "type here", so only the pane that has
+   * the keyboard does it -- two cursors blinking at once is a question, not an
+   * answer.
+   */
+  setActive(active: boolean): void {
+    this.term.options.cursorBlink = active;
+    if (active) this.term.focus();
+    else this.term.blur();
+  }
+
   focus(): void {
-    this.term.focus();
+    this.setActive(true);
   }
 
   blur(): void {
-    this.term.blur();
+    this.setActive(false);
   }
 
   /**

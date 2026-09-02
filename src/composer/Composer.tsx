@@ -326,7 +326,7 @@ export function Composer({
       className={[
         "composer",
         full ? "composer--full" : "composer--flat",
-        pane === "composer" ? "composer--active" : "",
+        pane === "composer" ? "composer--active" : "composer--idle",
         over ? "composer--drop" : "",
       ]
         .filter(Boolean)

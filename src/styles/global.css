@@ -621,6 +621,11 @@ button.viewer-tabs__tab {
   border-color: var(--border-active);
 }
 
+/* Without the keyboard there is nothing to point at, so no caret is drawn. */
+.composer--idle .composer__editor {
+  caret-color: transparent;
+}
+
 .composer--drop {
   border-color: var(--accent);
   border-style: dashed;

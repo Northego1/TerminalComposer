@@ -92,6 +92,13 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
     }
   }
 
+  // Ctrl+J is a line feed in a terminal, and taking it means programs inside
+  // no longer receive it. Rarely used there, and asked for here.
+  if (code === "KeyJ") {
+    useFocusStore.getState().togglePane();
+    return true;
+  }
+
   if (code === "Tab") return step(1);
   if (code === "KeyF") {
     openSearch();
