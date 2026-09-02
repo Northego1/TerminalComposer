@@ -64,6 +64,12 @@ describe("shellAdapter.abort", () => {
   });
 });
 
+describe("shellAdapter.interrupt", () => {
+  it("sends Ctrl+C", () => {
+    expect(shellAdapter.interrupt()).toEqual([{ data: "\x03" }]);
+  });
+});
+
 describe("shellQuote", () => {
   it("leaves safe paths untouched", () => {
     expect(shellQuote("/tmp/screenshot.png")).toBe("/tmp/screenshot.png");

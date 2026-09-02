@@ -16,6 +16,8 @@ export interface ComposerHandlers {
   cancel(): boolean;
   recallPrevious(): boolean;
   recallNext(): boolean;
+  /** Ctrl+C on an empty selection: drop the draft and interrupt the target. */
+  interrupt(): boolean;
 }
 
 /**
@@ -39,6 +41,10 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
       Enter: () => handlers().submit(),
       "Shift-Enter": ({ editor }) => editor.commands.splitBlock(),
       Escape: () => handlers().cancel(),
+      // With a selection Ctrl+C must still copy, so the key is only taken over
+      // when there is nothing to copy -- which is how a terminal behaves too.
+      "Mod-c": ({ editor }) =>
+        editor.state.selection.empty ? handlers().interrupt() : false,
       ArrowUp: ({ editor }) =>
         onFirstLine(editor.state) ? handlers().recallPrevious() : false,
       ArrowDown: ({ editor }) =>

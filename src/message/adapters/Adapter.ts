@@ -42,4 +42,9 @@ export interface Adapter {
    * knowledge, which is why it lives here.
    */
   abort(): PtyWrite[];
+  /**
+   * A hard interrupt -- the deliberate one the user asks for with Ctrl+C,
+   * as opposed to the gentle `abort()` behind an accidental Esc.
+   */
+  interrupt(): PtyWrite[];
 }

@@ -7,6 +7,8 @@ const SUBMIT = "\r";
 const ESCAPE = "\x1b";
 /** Ctrl+U -- "discard the current input line" in readline and Ink alike. */
 const KILL_LINE = "\x15";
+/** Ctrl+C. */
+const INTERRUPT = "\x03";
 
 /**
  * How long to wait after a paste before sending the submitting CR.
@@ -70,6 +72,10 @@ export const shellAdapter: Adapter = {
       { data: ESCAPE },
       { data: KILL_LINE, delayBefore: ABORT_SETTLE_MS },
     ];
+  },
+
+  interrupt(): PtyWrite[] {
+    return [{ data: INTERRUPT }];
   },
 };
 

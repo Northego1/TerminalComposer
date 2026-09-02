@@ -16,6 +16,7 @@ const noHandlers = (): ComposerHandlers => ({
   cancel: () => false,
   recallPrevious: () => false,
   recallNext: () => false,
+  interrupt: () => false,
 });
 
 const schema = getSchema(composerExtensions(noHandlers, ""));

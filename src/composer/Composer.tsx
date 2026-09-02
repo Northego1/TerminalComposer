@@ -17,6 +17,8 @@ interface ComposerProps {
   onSubmit: (message: Message) => void;
   /** Asks the target to stop what the last submission started. */
   onAbort: () => void;
+  /** Ctrl+C: interrupt the target outright. */
+  onInterrupt: () => void;
   disabled?: boolean;
 }
 
@@ -26,7 +28,12 @@ interface ComposerProps {
  * It has no reference to the terminal, the PTY or any particular target --
  * see `src/message/adapters` for who turns a message into bytes.
  */
-export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps) {
+export function Composer({
+  onSubmit,
+  onAbort,
+  onInterrupt,
+  disabled = false,
+}: ComposerProps) {
   const [undoable, setUndoable] = useState<string | null>(null);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
@@ -35,9 +42,9 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
   // lives in refs and stays current without rebuilding the editor.
   const history = useRef(EMPTY_HISTORY);
   const undoableRef = useRef<string | null>(null);
-  const callbacks = useRef({ onSubmit, onAbort });
+  const callbacks = useRef({ onSubmit, onAbort, onInterrupt });
   useEffect(() => {
-    callbacks.current = { onSubmit, onAbort };
+    callbacks.current = { onSubmit, onAbort, onInterrupt };
   });
 
   const rememberUndoable = (text: string | null) => {
@@ -50,6 +57,7 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
     cancel: () => false,
     recallPrevious: () => false,
     recallNext: () => false,
+    interrupt: () => false,
   });
 
   const editor = useEditor({
@@ -105,6 +113,13 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
       replaceContent(recalled.text);
       return true;
     },
+
+    // Clearing goes through the editor, so Ctrl+Z brings the draft back.
+    interrupt: () => {
+      editor?.commands.clearContent(true);
+      callbacks.current.onInterrupt();
+      return true;
+    },
   };
 
   /** Recalled text lands with the caret at the end, ready to be edited. */
@@ -144,7 +159,7 @@ export function Composer({ onSubmit, onAbort, disabled = false }: ComposerProps)
         >
           {undoable !== null
             ? "Esc — отменить отправку и вернуть текст"
-            : "Enter — отправить · Shift+Enter — новая строка · ↑↓ — история · Esc — свернуть"}
+            : "Enter — отправить · Shift+Enter — строка · ↑↓ — история · Ctrl+C — сброс · Esc — свернуть"}
         </span>
         <button
           type="button"
