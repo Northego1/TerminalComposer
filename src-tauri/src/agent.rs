@@ -119,13 +119,24 @@ fn settings_path() -> Option<PathBuf> {
     Some(PathBuf::from(std::env::var_os("HOME")?).join(".claude/settings.json"))
 }
 
-/// Whether our hooks are already in Claude Code's settings.
+/// Whether our hooks are in Claude Code's settings **and point at the script we
+/// would install now**.
+///
+/// Comparing the path rather than just looking for the name matters: an entry
+/// left by an older version points somewhere that no longer exists, and treating
+/// it as installed would leave it broken forever.
 #[tauri::command]
-pub fn agent_hooks_installed() -> bool {
+pub fn agent_hooks_installed(app: AppHandle) -> bool {
+    let Some(script) = hook_script(&app) else {
+        return false;
+    };
     let Some(settings) = settings_path().and_then(|p| std::fs::read_to_string(p).ok()) else {
         return false;
     };
-    settings.contains("report-event.sh")
+    let script = script.to_string_lossy();
+    HOOKED_EVENTS
+        .iter()
+        .all(|event| settings.contains(&format!("{script} {event}")))
 }
 
 /// Adds our hooks to Claude Code's settings, keeping a backup of the original.
