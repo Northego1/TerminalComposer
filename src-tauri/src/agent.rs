@@ -48,12 +48,6 @@ pub fn hook_script(app: &AppHandle) -> Option<PathBuf> {
     Some(path)
 }
 
-/// A line from the frontend, into the same record as the events.
-#[tauri::command]
-pub fn agent_log(line: String) {
-    log(&line);
-}
-
 /// Creates the pipe and starts reading it. One reader for the whole app.
 pub fn listen(app: AppHandle) {
     // Kept current, so a script written by an older version is replaced.

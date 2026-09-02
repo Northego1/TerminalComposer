@@ -37,11 +37,6 @@ export function onAgentEvent(
   });
 }
 
-/** Notes what was decided, into the same record the events go to. */
-export function note(line: string): void {
-  void invoke("agent_log", { line }).catch(() => {});
-}
-
 export function hooksInstalled(): Promise<boolean> {
   return invoke<boolean>("agent_hooks_installed").catch(() => false);
 }
