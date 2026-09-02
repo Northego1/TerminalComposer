@@ -621,6 +621,32 @@ button.viewer-tabs__tab {
   border-color: var(--border-active);
 }
 
+/*
+ * The command line, coloured the way a shell colours it: a command that exists
+ * against one that does not, so a typo shows before Enter rather than after.
+ */
+.cl-command {
+  color: #7ec699;
+}
+
+.cl-unknown {
+  color: #ff8b8b;
+}
+
+.cl-flag {
+  color: var(--accent);
+}
+
+.cl-string {
+  color: #d7b370;
+}
+
+.cl-path {
+  text-decoration: underline;
+  text-decoration-color: var(--border-active);
+  text-underline-offset: 3px;
+}
+
 /* Without the keyboard there is nothing to point at, so no caret is drawn. */
 .composer--idle .composer__editor {
   caret-color: transparent;

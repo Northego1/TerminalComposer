@@ -120,6 +120,7 @@ export function Composer({
       () => handlers.current,
       () => translate("composer.placeholder"),
       (typed) => continuationOf(sharedHistory(), typed),
+      () => useTabsStore.getState().activeId,
     ),
     editorProps: {
       attributes: { class: "composer__editor" },

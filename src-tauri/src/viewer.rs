@@ -180,6 +180,24 @@ pub fn complete_command(id: String, prefix: String) -> Vec<String> {
     names
 }
 
+/// Everything the session's shell can run.
+///
+/// The whole list at once, not a prefix at a time: highlighting asks about
+/// every word as it is typed, and a round trip per keystroke would be absurd
+/// for an answer that does not change.
+#[tauri::command]
+pub fn shell_commands(id: String) -> Vec<String> {
+    std::fs::read_to_string(crate::shell::commands_file(&id))
+        .map(|contents| {
+            contents
+                .lines()
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
 /// Splits a typed token into the directory to look in and the prefix to match.
 fn split_token(cwd: &str, token: &str) -> (PathBuf, String) {
     let expanded = shellexpand_home(token);
