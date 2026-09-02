@@ -307,16 +307,42 @@ body {
   cursor: pointer;
 }
 
-/* Fades the composer out where it disappears below the window edge. */
-.app__composer--peek::after {
-  content: "";
+/*
+ * While collapsed the composer shows a handle rather than a slice of the text:
+ * a cut-off line reads as a rendering fault, an arrow reads as "there is more
+ * here".
+ */
+.app__composer--peek .app__composer-inner {
+  visibility: hidden;
+}
+
+.composer-peek {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 22px;
-  background: linear-gradient(to bottom, transparent, var(--bg));
-  pointer-events: none;
+  top: 8px;
+  left: 50%;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-elevated);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease,
+    color 120ms ease;
+}
+
+.composer-peek:hover {
+  border-color: var(--border-active);
+  color: var(--accent);
 }
 
 .composer {

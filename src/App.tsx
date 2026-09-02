@@ -147,6 +147,17 @@ export default function App() {
           title={collapsed ? t("composer.expand") : undefined}
           onMouseDown={collapsed ? () => focusPane("composer") : undefined}
         >
+          {collapsed && (
+            <button
+              type="button"
+              className="composer-peek"
+              onClick={() => focusPane("composer")}
+              title={t("composer.expand")}
+              aria-label={t("composer.expand")}
+            >
+              ↑
+            </button>
+          )}
           <div className="app__composer-inner" ref={contentRef}>
             <Composer
               onSubmit={handleSubmit}
