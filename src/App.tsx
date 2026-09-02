@@ -51,6 +51,7 @@ export default function App() {
   const settings = useSettingsStore((state) => state.settings);
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
+  const suggestPane = useFocusStore((state) => state.suggestPane);
   const [searching, setSearching] = useState(false);
   const t = useT();
   useGlobalHotkeys({ openSearch: () => setSearching(true) });
@@ -96,10 +97,10 @@ export default function App() {
     setShellState(instance?.shellState ?? "unknown");
     return instance?.onShellStateChange((state) => {
       setShellState(state);
-      if (state === "prompt") focusPane("composer");
-      else if (state === "running") focusPane("terminal");
+      if (state === "prompt") suggestPane("composer");
+      else if (state === "running") suggestPane("terminal");
     });
-  }, [activeId, focusPane]);
+  }, [activeId, suggestPane]);
 
   const handleSubmit = useCallback(
     (message: Message) => {
@@ -109,10 +110,10 @@ export default function App() {
       // Whatever was sent, the answer comes back in the terminal -- output, a
       // question, a picker. This needs no signal at all: we know we just sent
       // something. The keyboard comes back on its own when the shell returns to
-      // its prompt or the agent finishes answering.
-      focusPane("terminal");
+      // its prompt.
+      suggestPane("terminal");
     },
-    [focusPane],
+    [suggestPane],
   );
 
 

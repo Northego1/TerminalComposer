@@ -64,6 +64,8 @@ export function Composer({
   const t = useT();
   const pane = useFocusStore((state) => state.pane);
   const focusPane = useFocusStore((state) => state.focusPane);
+  const pinned = useFocusStore((state) => state.pinned);
+  const togglePinned = useFocusStore((state) => state.togglePinned);
 
   // Keyboard handlers run outside React's render, so everything they touch
   // lives in refs and stays current without rebuilding the editor.
@@ -350,8 +352,19 @@ export function Composer({
               ? t("composer.hint.drop")
               : undoable !== null
                 ? t("composer.hint.undo")
-                : t("composer.hint")}
+                : pinned
+                  ? t("composer.pinned")
+                  : t("composer.hint")}
           </span>
+          <button
+            type="button"
+            className={`composer__pin${pinned ? " composer__pin--on" : ""}`}
+            onClick={togglePinned}
+            title={t("composer.pin")}
+            aria-pressed={pinned}
+          >
+            ⌾
+          </button>
           <button
             type="button"
             className="composer__send"

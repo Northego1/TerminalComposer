@@ -22,8 +22,20 @@ export type Pane = "terminal" | "composer";
 
 interface FocusState {
   pane: Pane;
+  /**
+   * The composer keeps the keyboard, whatever anything else reports.
+   *
+   * The shell can only speak for itself: inside `docker exec`, `ssh`, `tmux` or
+   * a nested shell it sees one command running and nothing more, so nothing
+   * ever says the inner prompt is waiting. Rather than guess at that, this is
+   * the switch that says so outright.
+   */
+  pinned: boolean;
   focusPane: (pane: Pane) => void;
+  /** Moves the keyboard unless the composer has been pinned. */
+  suggestPane: (pane: Pane) => void;
   togglePane: () => void;
+  togglePinned: () => void;
 }
 
 export const useFocusStore = create<FocusState>((set) => ({
@@ -31,7 +43,14 @@ export const useFocusStore = create<FocusState>((set) => ({
   // hands it to the composer straight away; without, it stays here and the
   // composer is opened by hand -- nothing is ever guessed.
   pane: "terminal",
+  pinned: false,
   focusPane: (pane) => set({ pane }),
+
+  suggestPane: (pane) =>
+    set((state) => (state.pinned ? state : { pane })),
+
+  togglePinned: () =>
+    set((state) => ({ pinned: !state.pinned, pane: state.pinned ? state.pane : "composer" })),
   togglePane: () =>
     set((state) => ({
       pane: state.pane === "composer" ? "terminal" : "composer",

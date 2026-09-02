@@ -683,11 +683,38 @@ button.viewer-tabs__tab {
 }
 
 .composer__hint {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--text-dim);
   font-size: 11px;
 }
 
 .composer__hint--undo {
+  color: var(--accent);
+}
+
+.composer__pin {
+  margin-left: auto;
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.composer__pin:hover {
+  color: var(--text);
+}
+
+.composer__pin--on {
+  border-color: var(--border-active);
   color: var(--accent);
 }
 

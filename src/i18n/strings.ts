@@ -23,6 +23,8 @@ export const EN = {
   "composer.hint.drop": "Release to attach the files",
   "composer.send": "Enter →",
   "composer.expand": "Open composer",
+  "composer.pin": "Keep the keyboard here (Ctrl+Shift+P)",
+  "composer.pinned": "pinned · Ctrl+Shift+P releases it",
 
   "attachment.image": "Image {n}",
   "attachment.remove": "Remove attachment",
@@ -87,6 +89,8 @@ export const RU: Record<StringKey, string> = {
   "composer.hint.drop": "Отпустите — файлы станут вложениями",
   "composer.send": "Enter →",
   "composer.expand": "Открыть composer",
+  "composer.pin": "Держать клавиатуру здесь (Ctrl+Shift+P)",
+  "composer.pinned": "закреплено · Ctrl+Shift+P отпускает",
 
   "attachment.image": "Изображение {n}",
   "attachment.remove": "Удалить вложение",

@@ -70,6 +70,9 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
       case "KeyT":
         void tabs.openTerminal();
         return true;
+      case "KeyP":
+        useFocusStore.getState().togglePinned();
+        return true;
       case "KeyW":
         if (!tabs.activeId) return false;
         void tabs.close(tabs.activeId);
