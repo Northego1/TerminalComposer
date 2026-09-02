@@ -75,6 +75,7 @@ impl PtySession {
             .map_err(|e| format!("failed to write to pty: {e}"))?;
 
         let pid = child.process_id();
+        crate::agent::log(&format!("spawn session={id} shell={shell} integration={integrated}"));
         pump::start(app, id.clone(), reader);
 
         Ok(Self {

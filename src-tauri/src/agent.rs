@@ -68,6 +68,7 @@ pub fn listen(app: AppHandle) {
         };
 
         for line in BufReader::new(pipe).lines().map_while(Result::ok) {
+            log(&format!("event {line}"));
             let mut parts = line.split_whitespace();
             let (Some(session_id), Some(kind)) = (parts.next(), parts.next()) else {
                 continue;
@@ -83,6 +84,23 @@ pub fn listen(app: AppHandle) {
 
         drop(keep_open);
     });
+}
+
+/// A record of what arrived and when.
+///
+/// Whether an agent reports something at all is outside our control, and
+/// without a record the only way to find out is to guess. Kept next to the
+/// pipe, in the runtime directory, so it goes away on its own.
+pub fn log(line: &str) {
+    use std::io::Write;
+    let path = events_pipe().with_file_name("events.log");
+    let seconds = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    if let Ok(mut file) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(file, "{seconds} {line}");
+    }
 }
 
 fn create_pipe() -> Option<PathBuf> {
