@@ -10,6 +10,10 @@ const noHandlers = (): ComposerHandlers => ({
   recallPrevious: () => false,
   recallNext: () => false,
   interrupt: () => false,
+  completionMove: () => false,
+  completionAccept: () => false,
+  completionClose: () => false,
+  completionRequest: () => false,
 });
 
 const schema = getSchema(composerExtensions(noHandlers, () => ""));

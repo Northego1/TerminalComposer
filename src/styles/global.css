@@ -1062,3 +1062,51 @@ button.viewer-tabs__tab {
     transition: none;
   }
 }
+
+/* ---- path completion ---- */
+
+/*
+ * Drawn into the body and lifted above the caret: the composer is short and
+ * scrolls, so a list inside it would be cut off at once.
+ */
+.completion {
+  position: fixed;
+  z-index: 60;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 220px;
+  max-width: 380px;
+  max-height: 240px;
+  overflow-y: auto;
+  transform: translateY(calc(-100% - 8px));
+  border: 1px solid var(--border-active);
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 45%);
+}
+
+.completion__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: ui-monospace, monospace;
+  font-size: 12.5px;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.completion__item--selected {
+  background: var(--surface);
+}
+
+.completion__icon {
+  color: var(--text-dim);
+}

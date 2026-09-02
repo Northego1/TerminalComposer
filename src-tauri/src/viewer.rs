@@ -105,6 +105,77 @@ pub fn resolve_paths(
         .collect()
 }
 
+/// Enough to fill a dropdown without walking a directory of thousands.
+const COMPLETION_LIMIT: usize = 40;
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathCompletion {
+    /// What to show, and what replaces the typed token.
+    pub name: String,
+    pub path: String,
+    pub is_dir: bool,
+}
+
+/// What could finish the path being typed, relative to the session's cwd.
+#[tauri::command]
+pub fn complete_path(
+    registry: State<'_, PtyRegistry>,
+    id: String,
+    token: String,
+) -> Vec<PathCompletion> {
+    let cwd = registry.session_cwd(&id).unwrap_or_default();
+    let (directory, prefix) = split_token(&cwd, &token);
+
+    let Ok(entries) = std::fs::read_dir(&directory) else {
+        return Vec::new();
+    };
+
+    let mut matches: Vec<PathCompletion> = entries
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            if !name.to_lowercase().starts_with(&prefix.to_lowercase()) {
+                return None;
+            }
+            // Hidden entries only when they were asked for by name.
+            if name.starts_with('.') && !prefix.starts_with('.') {
+                return None;
+            }
+            Some(PathCompletion {
+                is_dir: entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false),
+                path: entry.path().to_string_lossy().into_owned(),
+                name,
+            })
+        })
+        .collect();
+
+    // Directories first, then alphabetically: a directory is usually a step on
+    // the way to what is actually being typed.
+    matches.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.cmp(&b.name)));
+    matches.truncate(COMPLETION_LIMIT);
+    matches
+}
+
+/// Splits a typed token into the directory to look in and the prefix to match.
+fn split_token(cwd: &str, token: &str) -> (PathBuf, String) {
+    let expanded = shellexpand_home(token);
+    let (head, prefix) = match expanded.rsplit_once('/') {
+        Some((head, prefix)) => (format!("{head}/"), prefix.to_string()),
+        None => (String::new(), expanded),
+    };
+
+    let directory = if head.is_empty() {
+        PathBuf::from(cwd)
+    } else if head.starts_with('/') {
+        PathBuf::from(&head)
+    } else {
+        Path::new(cwd).join(&head)
+    };
+
+    (directory, prefix)
+}
+
 fn shellexpand_home(path: &str) -> String {
     match path.strip_prefix("~") {
         Some(rest) => match std::env::var("HOME") {
@@ -112,6 +183,33 @@ fn shellexpand_home(path: &str) -> String {
             Err(_) => path.to_string(),
         },
         None => path.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_token;
+    use std::path::PathBuf;
+
+    #[test]
+    fn resolves_a_bare_prefix_against_the_working_directory() {
+        let (directory, prefix) = split_token("/home/me", "pro");
+        assert_eq!(directory, PathBuf::from("/home/me"));
+        assert_eq!(prefix, "pro");
+    }
+
+    #[test]
+    fn resolves_a_relative_path() {
+        let (directory, prefix) = split_token("/home/me", "src/comp");
+        assert_eq!(directory, PathBuf::from("/home/me/src/"));
+        assert_eq!(prefix, "comp");
+    }
+
+    #[test]
+    fn resolves_an_absolute_path() {
+        let (directory, prefix) = split_token("/home/me", "/usr/lo");
+        assert_eq!(directory, PathBuf::from("/usr/"));
+        assert_eq!(prefix, "lo");
     }
 }
 

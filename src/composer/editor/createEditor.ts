@@ -19,6 +19,14 @@ export interface ComposerHandlers {
   cancel(): boolean;
   recallPrevious(): boolean;
   recallNext(): boolean;
+  /**
+   * The completion list, while it is open, owns the keys that drive it.
+   * Each returns true only when it actually took the key.
+   */
+  completionMove(by: number): boolean;
+  completionAccept(): boolean;
+  completionClose(): boolean;
+  completionRequest(): boolean;
   /** Ctrl+C on an empty selection: drop the draft and interrupt the target. */
   interrupt(): boolean;
 }
@@ -41,13 +49,16 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
   addKeyboardShortcuts() {
     const handlers = () => this.options.handlers();
     return {
-      Enter: () => handlers().submit(),
+      Enter: () => handlers().completionAccept() || handlers().submit(),
       "Shift-Enter": ({ editor }) => editor.commands.splitBlock(),
-      Escape: () => handlers().cancel(),
+      Escape: () => handlers().completionClose() || handlers().cancel(),
+      Tab: () => handlers().completionAccept() || handlers().completionRequest(),
       ArrowUp: ({ editor }) =>
-        onFirstLine(editor.state) ? handlers().recallPrevious() : false,
+        handlers().completionMove(-1) ||
+        (onFirstLine(editor.state) ? handlers().recallPrevious() : false),
       ArrowDown: ({ editor }) =>
-        onLastLine(editor.state) ? handlers().recallNext() : false,
+        handlers().completionMove(1) ||
+        (onLastLine(editor.state) ? handlers().recallNext() : false),
     };
   },
 

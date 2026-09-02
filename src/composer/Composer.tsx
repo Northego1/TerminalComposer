@@ -11,6 +11,8 @@ import type { Attachment } from "../message/types";
 import { SessionContextLine, useSessionContext } from "./SessionContextLine";
 import { attachmentsFromClipboard, attachmentsFromPaths } from "./attachments/ingest";
 import { useFileDrop } from "./attachments/useFileDrop";
+import { CompletionList } from "./completion/CompletionList";
+import { usePathCompletion } from "./completion/usePathCompletion";
 import { attachmentNodeFor } from "./editor/AttachmentNode";
 import { composerExtensions, type ComposerHandlers } from "./editor/createEditor";
 import { docToText, needsFullComposer } from "./editor/documentText";
@@ -86,6 +88,10 @@ export function Composer({
     recallPrevious: () => false,
     recallNext: () => false,
     interrupt: () => false,
+    completionMove: () => false,
+    completionAccept: () => false,
+    completionClose: () => false,
+    completionRequest: () => false,
   });
 
   // Paste handling needs the editor from inside options built before it
@@ -102,6 +108,8 @@ export function Composer({
       .insertContent(attachments.map(attachmentNodeFor))
       .run();
   };
+
+  const completionRef = useRef<ReturnType<typeof usePathCompletion> | null>(null);
 
   const editor = useEditor({
     extensions: composerExtensions(() => handlers.current, () =>
@@ -136,6 +144,7 @@ export function Composer({
     onFocus: () => focusPane("composer"),
     onUpdate: ({ editor: updated }) => {
       rememberUndoable(null);
+      completionRef.current?.refresh();
       setFull(needsFullComposer(updated.state.doc));
       // Keeping the session's draft current on every edit is what lets both
       // switching sessions and quitting the app pick it up unchanged.
@@ -148,6 +157,9 @@ export function Composer({
   });
 
   editorRef.current = editor;
+
+  const completion = usePathCompletion(editor);
+  completionRef.current = completion;
 
   handlers.current = {
     submit: () => {
@@ -192,6 +204,18 @@ export function Composer({
       if (!recalled) return false;
       history.current = recalled.history;
       replaceContent(recalled.draft);
+      return true;
+    },
+
+    completionMove: (by) => (completion.state.items.length ? completion.move(by) : false),
+    completionAccept: () => completion.accept(),
+    completionClose: () => {
+      if (!completion.state.items.length) return false;
+      completion.close();
+      return true;
+    },
+    completionRequest: () => {
+      completion.request();
       return true;
     },
 
@@ -302,7 +326,14 @@ export function Composer({
             ❯
           </span>
         )}
-        <EditorContent editor={editor} className="composer__surface" />
+          <EditorContent editor={editor} className="composer__surface" />
+        <CompletionList
+          state={completion.state}
+          onChoose={(index) => {
+            completion.move(index - completion.state.selected);
+            completion.accept();
+          }}
+        />
         {!full && <SessionContextLine context={sessionContext} />}
       </div>
 
