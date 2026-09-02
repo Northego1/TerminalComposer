@@ -77,6 +77,40 @@ export default function App() {
   }, [tabs]);
 
   /**
+   * The active pane actually holds the keyboard.
+   *
+   * Which pane is active is a value in a store, and this is what makes the
+   * browser agree with it -- without it the state can say "the terminal" while
+   * the keys go somewhere else entirely.
+   */
+  useEffect(() => {
+    const instance = getInstance(activeId);
+    if (!instance) return;
+    if (pane === "terminal") instance.focus();
+    else instance.blur();
+  }, [pane, activeId]);
+
+  /**
+   * Never leave the keyboard with nobody.
+   *
+   * Controls in the chrome are told not to take it, but a click on a gap
+   * between them still lands on the page itself, and the next keystroke would
+   * go nowhere. Whenever that happens the active pane takes it back.
+   */
+  useEffect(() => {
+    const restore = () => {
+      if (document.activeElement && document.activeElement !== document.body) return;
+      if (useFocusStore.getState().pane === "terminal") {
+        getInstance(useTabsStore.getState().activeId)?.focus();
+      } else {
+        document.querySelector<HTMLElement>(".composer__editor")?.focus();
+      }
+    };
+    document.addEventListener("mouseup", restore);
+    return () => document.removeEventListener("mouseup", restore);
+  }, []);
+
+  /**
    * Who owns the keyboard, decided by what the shell reports about itself.
    *
    * Waiting for a command -> the composer, which is where commands are written.
