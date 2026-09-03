@@ -7,6 +7,9 @@
  */
 export const EN = {
   "app.error.spawn": "Could not start the shell:",
+  "window.minimize": "Minimise",
+  "window.maximize": "Maximise",
+  "window.close": "Close window",
   "app.shell.prompt": "waiting",
   "app.shell.running": "running",
 
@@ -81,6 +84,9 @@ export type StringKey = keyof typeof EN;
 
 export const RU: Record<StringKey, string> = {
   "app.error.spawn": "Не удалось запустить shell:",
+  "window.minimize": "Свернуть",
+  "window.maximize": "Развернуть",
+  "window.close": "Закрыть окно",
   "app.shell.prompt": "ждёт",
   "app.shell.running": "выполняется",
 

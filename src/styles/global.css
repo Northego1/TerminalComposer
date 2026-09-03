@@ -323,6 +323,8 @@ body {
   gap: 6px;
   flex: none;
   margin-left: auto;
+  /* Nothing may take a drag that belongs to the header. */
+  -webkit-user-select: none;
   padding: 3px 9px 3px 7px;
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -344,6 +346,45 @@ body {
 .app__badge--running {
   border-color: var(--border-active);
   color: var(--accent);
+}
+
+/* ---- the window's own frame ---- */
+
+.window-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  margin-left: 8px;
+  /* The badge is pushed right by its own margin; without this the buttons
+     would inherit that gap and drift away from the edge. */
+  margin-right: -6px;
+}
+
+.window-controls__button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.window-controls__button:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.window-controls__button--close:hover {
+  background: #c0392b;
+  color: #fff;
 }
 
 .app__badge--running .app__led {

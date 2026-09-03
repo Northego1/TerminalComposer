@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 
-import { getInstance } from "../app/tabsStore";
 import * as pty from "../terminal/ptyClient";
 
 /**
@@ -19,7 +18,7 @@ export function useSessionContext(sessionId: string | null): pty.SessionContext 
 
   useEffect(() => {
     setContext(null);
-    if (!sessionId || !getInstance(sessionId)) return;
+    if (!sessionId) return;
 
     let cancelled = false;
     const refresh = () =>
@@ -29,7 +28,10 @@ export function useSessionContext(sessionId: string | null): pty.SessionContext 
           if (!cancelled) setContext(next);
         })
         .catch(() => {
-          // The session is gone; its tab is on its way out too.
+          // Either the session has not been spawned yet or it is already gone.
+          // Both are answered by asking again a moment later, which is what the
+          // interval below does anyway -- and asking is the only way to find
+          // out, since a tab exists before the shell behind it does.
         });
 
     void refresh();

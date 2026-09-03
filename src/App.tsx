@@ -6,6 +6,7 @@ import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
 import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
+import { WindowControls } from "./app/WindowControls";
 import { readWorkspace, scheduleWorkspaceSave } from "./app/workspace";
 import { Composer } from "./composer/Composer";
 import { saveComposerState } from "./composer/state/drafts";
@@ -63,6 +64,8 @@ export default function App() {
     void start();
   }, []);
 
+  // Temporary: which element had the keyboard when a key arrived, so a letter
+  // that lands in the wrong pane can be told from one that lands in both.
   // Settings apply to the interface and to every terminal already running.
   useEffect(() => {
     applySettingsToDocument(settings);
@@ -174,8 +177,13 @@ export default function App() {
     setShellState(instance?.shellState ?? "unknown");
     return instance?.onShellStateChange((state) => {
       setShellState(state);
-      if (state === "prompt") suggestPane("composer");
-      else if (state === "running") suggestPane("terminal");
+      // Back to the composer only if the composer is what sent the command.
+      // A command typed in the terminal leaves the keyboard where it is.
+      if (state === "prompt") {
+        if (instance.fromComposer) suggestPane("composer");
+      } else if (state === "running") {
+        suggestPane("terminal");
+      }
     });
   }, [activeId, suggestPane]);
 
@@ -212,7 +220,9 @@ export default function App() {
       <Sidebar />
 
       <div className="app__main">
-        <header className="app__header">
+        {/* The header is the title bar: it drags the window, and a double
+            click on it maximises. */}
+        <header className="app__header" data-tauri-drag-region>
           <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
           {active?.kind === "terminal" && (
             <>
@@ -235,6 +245,8 @@ export default function App() {
               {t(shellState === "running" ? "app.shell.running" : "app.shell.prompt")}
             </span>
           )}
+
+          <WindowControls />
         </header>
 
         {onTerminal && viewing && viewing.paths.length > 0 && activeId && (

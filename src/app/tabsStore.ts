@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { AgentState } from "../agent/events";
 import { t } from "../i18n";
+import { context } from "../terminal/ptyClient";
 import { TerminalInstance } from "../terminal/TerminalInstance";
 import { useSettingsStore } from "./settingsStore";
 
@@ -16,6 +17,12 @@ export interface TerminalTab {
   name: string;
   cwd: string;
   shell: string;
+  /**
+   * The user named this one, so nothing else may.
+   *
+   * Without it a name typed by hand would be overwritten by the next `cd`.
+   */
+  renamed?: boolean;
 }
 
 export interface SettingsTab {
@@ -52,7 +59,6 @@ export function forEachInstance(visit: (instance: TerminalInstance) => void): vo
   instances.forEach(visit);
 }
 
-let openedTerminals = 0;
 let openedSettings = 0;
 
 interface TabsState {
@@ -67,17 +73,68 @@ interface TabsState {
   /** What the agent in each terminal is doing, when one reports it. */
   agents: Record<string, AgentState>;
   setAgentState: (sessionId: string, state: AgentState) => void;
-  openTerminal: (spawn?: { cwd?: string; name?: string }) => Promise<string | null>;
+  openTerminal: (spawn?: {
+    cwd?: string;
+    name?: string;
+    renamed?: boolean;
+  }) => Promise<string | null>;
   openSettings: (name?: string) => void;
   restore: (
-    saved: Array<{ kind: Tab["kind"]; name: string; cwd?: string }>,
+    saved: Array<{
+      kind: Tab["kind"];
+      name: string;
+      renamed?: boolean;
+      cwd?: string;
+    }>,
     activeIndex: number,
     onOpen?: (id: string, index: number) => void,
   ) => Promise<void>;
   close: (id: string) => Promise<void>;
   activate: (id: string) => void;
   rename: (id: string, name: string) => void;
+  setTabContext: (id: string, cwd: string) => void;
   reorder: (from: number, to: number) => void;
+}
+
+/**
+ * What to call a terminal that has not been named by hand.
+ *
+ * A number, and the same number for as long as the tab lives. The directory it
+ * sits in and the program it runs both change while the tab does not, and a
+ * name that moved with them would be a different name every minute -- the rail
+ * is read to find a terminal again, which needs the name to hold still.
+ *
+ * The lowest number nobody is using, so closing the second of three does not
+ * push the next one to four.
+ */
+function terminalName(tabs: Tab[]): string {
+  const taken = new Set(tabs.map((tab) => tab.name));
+  for (let n = 1; n <= taken.size + 1; n += 1) {
+    const candidate = t("sidebar.terminalName", { n });
+    if (!taken.has(candidate)) return candidate;
+  }
+  return t("sidebar.terminalName", { n: taken.size + 1 });
+}
+
+/**
+ * Keeps a tab's directory current from what the session reports.
+ *
+ * Only the directory: the name in the rail is the tab's own and holds still
+ * until it is renamed by hand. The header shows where the shell actually is,
+ * and only the shell knows that -- it is read from its `/proc` entry whenever
+ * it comes back to a prompt, since a command may have left it somewhere else.
+ */
+function watchForContext(instance: TerminalInstance): void {
+  const { id } = instance.session;
+
+  instance.onShellStateChange((state) => {
+    if (state !== "prompt") return;
+    void context(id)
+      .then(({ cwd }) => useTabsStore.getState().setTabContext(id, cwd))
+      .catch(() => {
+        // The session is on its way out; its tab is going with it.
+      });
+  });
 }
 
 export const useTabsStore = create<TabsState>((set, get) => ({
@@ -131,14 +188,15 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     try {
       const instance = await TerminalInstance.create(settings, { cwd: spawn.cwd });
       instances.set(instance.session.id, instance);
-      openedTerminals += 1;
+      watchForContext(instance);
       set((state) => ({
         tabs: [
           ...state.tabs,
           {
             kind: "terminal",
             id: instance.session.id,
-            name: spawn.name ?? t("sidebar.terminalName", { n: openedTerminals }),
+            name: spawn.name ?? terminalName(state.tabs),
+            renamed: spawn.renamed,
             cwd: instance.session.cwd,
             shell: instance.session.shell,
           },
@@ -211,7 +269,13 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         ids.push(get().activeId ?? "");
         continue;
       }
-      const id = await get().openTerminal({ cwd: tab.cwd, name: tab.name });
+      // A name given by hand comes back; a number is handed out again, so a
+      // session restored without its first tab does not start at two.
+      const id = await get().openTerminal({
+        cwd: tab.cwd,
+        name: tab.renamed ? tab.name : undefined,
+        renamed: tab.renamed,
+      });
       if (!id) continue;
       // Seeded right away, before anything can render against an empty draft.
       onOpen?.(id, index);
@@ -225,7 +289,6 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   close: async (id) => {
     const instance = instances.get(id);
     instances.delete(id);
-
     set((state) => {
       const index = state.tabs.findIndex((tab) => tab.id === id);
       const tabs = state.tabs.filter((tab) => tab.id !== id);
@@ -234,9 +297,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           ? (tabs[Math.min(index, tabs.length - 1)]?.id ?? null)
           : state.activeId;
       const { [id]: _gone, ...viewers } = state.viewers;
-      return { tabs, activeId, viewers };
       const { [id]: _closed, ...agents } = state.agents;
-      return { tabs, activeId, agents };
+      return { tabs, activeId, viewers, agents };
     });
 
     await instance?.dispose();
@@ -256,7 +318,29 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   rename: (id, name) =>
     set((state) => ({
       tabs: state.tabs.map((tab) =>
-        tab.id === id ? { ...tab, name: name.trim() || tab.name } : tab,
+        tab.id === id
+          ? { ...tab, name: name.trim() || tab.name, renamed: true }
+          : tab,
+      ),
+    })),
+
+  /**
+   * Where the shell is now.
+   *
+   * The directory a terminal was started in is not the one it is in a minute
+   * later, and both the tab's name and the header's path are about the second.
+   */
+  setTabContext: (id, cwd) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === id && tab.kind === "terminal"
+          ? {
+              ...tab,
+              // Only the directory: the header shows it, and the name in the
+              // rail stays what it was.
+              cwd,
+            }
+          : tab,
       ),
     })),
 

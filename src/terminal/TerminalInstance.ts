@@ -33,13 +33,25 @@ export class TerminalInstance {
   private disposed = false;
   /** Input waiting to be written; see `writeInput`. */
   private pendingInput = "";
+  /**
+   * Whether the last thing sent came from the composer rather than from the
+   * keyboard in the terminal.
+   *
+   * It decides where the keyboard goes when the shell returns to its prompt:
+   * back to the composer if the composer sent the command, and nowhere at all
+   * if the command was typed in the terminal -- somebody working there is
+   * still working there, and moving them out after every Enter would be a
+   * fight rather than a convenience.
+   */
+  private sentByComposer = false;
   private writing = false;
   private lastSize = { cols: 0, rows: 0 };
   private shell: ShellState = "unknown";
   private readonly shellStateHandlers = new Set<(state: ShellState) => void>();
   private readonly commandHandlers = new Set<(command: string) => void>();
-  /** Temporary: the last character we fed to xterm ourselves. */
-  private lastSent: { data: string; at: number } | null = null;
+  private readonly titleHandlers = new Set<(title: string) => void>();
+  /** Whether this shell names its tab as well as its window; see `watchTitle`. */
+  private sawTabTitle = false;
 
   private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
@@ -61,9 +73,9 @@ export class TerminalInstance {
     this.term.loadAddon(this.searchAddon);
     this.term.attachCustomKeyEventHandler((event) => this.handleKey(event));
     this.watchShellState();
+    this.watchTitle();
     this.linkPaths();
     this.term.open(this.element);
-    this.watchInputEvents();
   }
 
   static async create(
@@ -97,6 +109,11 @@ export class TerminalInstance {
     return this.term.getSelection();
   }
 
+  /** Whether the composer sent what is running, rather than the keyboard. */
+  get fromComposer(): boolean {
+    return this.sentByComposer;
+  }
+
   /** Pastes text as the terminal itself would, bracketed paste included. */
   paste(text: string): void {
     this.term.paste(text);
@@ -111,7 +128,12 @@ export class TerminalInstance {
     });
     this.disposers.push(unlistenOutput, unlistenExit);
 
-    const onData = this.term.onData((data) => this.writeInput(data));
+    const onData = this.term.onData((data) => {
+      // Anything xterm reports is somebody typing or pasting into the terminal
+      // itself; what the composer sends goes straight to `writeInput`.
+      this.sentByComposer = false;
+      this.writeInput(data);
+    });
     const onResize = this.term.onResize(({ cols, rows }) => {
       // Resizing a PTY makes the program redraw, so only tell it about sizes
       // that actually changed -- a pane animation fires many equal ones.
@@ -171,6 +193,7 @@ export class TerminalInstance {
    * pauses it asked for.
    */
   async submit(writes: PtyWrite[]): Promise<void> {
+    this.sentByComposer = true;
     for (const write of writes) {
       if (write.delayBefore) await sleep(write.delayBefore);
       if (this.disposed) return;
@@ -187,50 +210,6 @@ export class TerminalInstance {
    * whatever piles up behind it guarantees order and cuts the number of round
    * trips at the same time.
    */
-  /**
-   * Every other way a character can reach xterm.
-   *
-   * The key handler is not the only door. WebKitGTK can also commit text
-   * through the hidden textarea, and when that happens after the key handler
-   * has already sent the same character the shell receives it twice. Listening
-   * on the container in the capture phase puts us ahead of xterm's own
-   * listeners, so an echo can be recognised and stopped before it is sent.
-   *
-   * Only an exact repeat of what we just sent, within a moment of sending it,
-   * is dropped -- a key held down produces its own keydown each time, so
-   * genuine repeats survive.
-   */
-  private watchInputEvents(): void {
-    const types = [
-      "beforeinput",
-      "input",
-      "keypress",
-      "compositionstart",
-      "compositionupdate",
-      "compositionend",
-    ];
-    for (const type of types) {
-      this.element.addEventListener(type, (event) => this.suppressEcho(type, event), true);
-    }
-  }
-
-  private suppressEcho(type: string, event: Event): void {
-    const data =
-      "data" in event && typeof (event as InputEvent).data === "string"
-        ? ((event as InputEvent).data as string)
-        : "";
-    const sent = this.lastSent;
-    const echo =
-      sent !== null && data !== "" && data === sent.data && Date.now() - sent.at < 200;
-
-    if (!echo || (type !== "beforeinput" && type !== "input")) return;
-
-    this.lastSent = null;
-    event.stopImmediatePropagation();
-    event.preventDefault();
-    if (this.term.textarea) this.term.textarea.value = "";
-  }
-
   private writeInput(data: string): void {
     if (!data || this.disposed) return;
     this.pendingInput += data;
@@ -286,7 +265,6 @@ export class TerminalInstance {
     // Without this the character would also reach the hidden textarea and be
     // sent a second time.
     event.preventDefault();
-    this.lastSent = { data, at: Date.now() };
     this.term.input(data);
     return false;
   }
@@ -355,6 +333,14 @@ export class TerminalInstance {
     };
   }
 
+  /** What the shell, or whatever is running in it, calls this terminal. */
+  onTitle(handler: (title: string) => void): () => void {
+    this.titleHandlers.add(handler);
+    return () => {
+      this.titleHandlers.delete(handler);
+    };
+  }
+
   /** Every command the shell runs, however it was typed. */
   onCommand(handler: (command: string) => void): () => void {
     this.commandHandlers.add(handler);
@@ -370,6 +356,40 @@ export class TerminalInstance {
    * its prompt. This is reported by the shell rather than guessed from its
    * output, which is the whole point: no program can surprise it.
    */
+  /**
+   * The title the shell sets for itself, which is older than any of this.
+   *
+   * A shell has announced its title through OSC since long before terminals had
+   * tabs, and it knows things we cannot see from outside: `ssh` reports the host
+   * it reached, an editor the file it holds, `tmux` its session. Deriving a name
+   * from the working directory can never say any of that.
+   *
+   * Two codes carry it. OSC 2 is the window title, which tends to be long
+   * (`user@host:~/work/project`); OSC 1 is the tab title, which is already short
+   * because it was meant for exactly this. So the tab title wins whenever the
+   * shell sends one, and the window title is the fallback for shells that do
+   * not. Returning false leaves xterm's own handling of the code in place.
+   */
+  private watchTitle(): void {
+    this.term.parser.registerOscHandler(1, (data) => {
+      this.sawTabTitle = true;
+      this.announceTitle(data);
+      return false;
+    });
+
+    const subscription = this.term.onTitleChange((title) => {
+      if (this.sawTabTitle) return;
+      this.announceTitle(title);
+    });
+    this.disposers.push(() => subscription.dispose());
+  }
+
+  private announceTitle(title: string): void {
+    const text = title.trim();
+    if (!text) return;
+    for (const handler of this.titleHandlers) handler(text);
+  }
+
   private watchShellState(): void {
     this.term.parser.registerOscHandler(133, (data) => {
       const next: ShellState = data.startsWith("C") ? "running" : "prompt";

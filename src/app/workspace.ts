@@ -17,6 +17,8 @@ const SAVE_DEBOUNCE_MS = 700;
 export interface PersistedTab {
   kind: Tab["kind"];
   name: string;
+  /** Whether the name was given by hand; an automatic one is derived again. */
+  renamed?: boolean;
   cwd?: string;
   composer?: ComposerState;
 }
@@ -47,6 +49,7 @@ function snapshot(): Workspace {
         ? {
             kind: tab.kind,
             name: tab.name,
+            renamed: tab.renamed,
             cwd: tab.cwd,
             composer: loadComposerState(tab.id),
           }
