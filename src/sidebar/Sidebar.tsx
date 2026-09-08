@@ -201,12 +201,22 @@ function TabRow({
           className="sidebar__select"
           onClick={() => activate(tab.id)}
           onDoubleClick={onStartRename}
-          title={tab.kind === "terminal" ? `${tab.shell} · ${tab.cwd}` : tab.name}
+          title={tab.kind === "terminal" ? tab.panes.map((pane) => `${pane.shell} · ${pane.cwd}`).join("\n") : tab.name}
         >
           <span className="sidebar__icon" aria-hidden="true">
             {tab.kind === "terminal" ? "›_" : "⚙"}
           </span>
-          {tab.name}
+          <span className="sidebar__name">{tab.name}</span>
+          {/* A split tab says how many shells it holds; one is the ordinary
+              case and needs no number. */}
+          {tab.kind === "terminal" && tab.panes.length > 1 && (
+            <span
+              className="sidebar__panes"
+              title={t("sidebar.panes", { n: tab.panes.length })}
+            >
+              ⫿{tab.panes.length}
+            </span>
+          )}
           {agent && agent !== "working" && (
             <span
               className={`sidebar__agent sidebar__agent--${agent}`}

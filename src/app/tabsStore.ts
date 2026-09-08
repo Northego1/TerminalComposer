@@ -7,22 +7,40 @@ import { TerminalInstance } from "../terminal/TerminalInstance";
 import { useSettingsStore } from "./settingsStore";
 
 /**
+ * One shell inside a terminal tab.
+ *
+ * Its id is the PTY session's id: everything that talks to a running shell --
+ * the composer, the search, the agent events -- addresses it by that.
+ */
+export interface TerminalPane {
+  id: string;
+  cwd: string;
+  shell: string;
+}
+
+/**
  * The left rail lists tabs, and a tab is either a terminal or a settings page.
  * Settings being a tab rather than a dialog means it opens as many times as the
  * user wants and closes exactly like everything else.
+ *
+ * A terminal tab holds one shell or several side by side. The tab is what the
+ * rail names, drags and closes; the panes are what the keyboard reaches, one
+ * at a time.
  */
 export interface TerminalTab {
   kind: "terminal";
   id: string;
   name: string;
-  cwd: string;
-  shell: string;
   /**
    * The user named this one, so nothing else may.
    *
    * Without it a name typed by hand would be overwritten by the next `cd`.
    */
   renamed?: boolean;
+  /** Left to right. Never empty: a tab with no shells closes itself. */
+  panes: TerminalPane[];
+  /** The pane that has the keyboard whenever this tab is the one on screen. */
+  paneId: string;
 }
 
 export interface SettingsTab {
@@ -70,7 +88,7 @@ interface TabsState {
   openFile: (path: string) => void;
   showFile: (tabId: string, path: string | null) => void;
   closeFile: (tabId: string, path: string) => void;
-  /** What the agent in each terminal is doing, when one reports it. */
+  /** What the agent in each terminal tab is doing, when one reports it. */
   agents: Record<string, AgentState>;
   setAgentState: (sessionId: string, state: AgentState) => void;
   openTerminal: (spawn?: {
@@ -78,6 +96,17 @@ interface TabsState {
     name?: string;
     renamed?: boolean;
   }) => Promise<string | null>;
+  /**
+   * Opens another shell beside the ones in the active tab, in the directory
+   * the focused one is in, and gives it the keyboard.
+   */
+  split: () => Promise<string | null>;
+  /** Closes one shell; closing the last one in a tab closes the tab. */
+  closePane: (sessionId: string) => Promise<void>;
+  /** Gives one shell the keyboard, showing its tab if it is not the one shown. */
+  focusPane: (sessionId: string) => void;
+  /** Moves the keyboard to the neighbouring shell in the active tab. */
+  stepPane: (direction: 1 | -1) => void;
   openSettings: (name?: string) => void;
   restore: (
     saved: Array<{
@@ -85,6 +114,7 @@ interface TabsState {
       name: string;
       renamed?: boolean;
       cwd?: string;
+      panes?: Array<{ cwd?: string }>;
     }>,
     activeIndex: number,
     onOpen?: (id: string, index: number) => void,
@@ -92,7 +122,7 @@ interface TabsState {
   close: (id: string) => Promise<void>;
   activate: (id: string) => void;
   rename: (id: string, name: string) => void;
-  setTabContext: (id: string, cwd: string) => void;
+  setPaneContext: (sessionId: string, cwd: string) => void;
   reorder: (from: number, to: number) => void;
 }
 
@@ -117,7 +147,7 @@ function terminalName(tabs: Tab[]): string {
 }
 
 /**
- * Keeps a tab's directory current from what the session reports.
+ * Keeps a pane's directory current from what the session reports.
  *
  * Only the directory: the name in the rail is the tab's own and holds still
  * until it is renamed by hand. The header shows where the shell actually is,
@@ -130,11 +160,32 @@ function watchForContext(instance: TerminalInstance): void {
   instance.onShellStateChange((state) => {
     if (state !== "prompt") return;
     void context(id)
-      .then(({ cwd }) => useTabsStore.getState().setTabContext(id, cwd))
+      .then(({ cwd }) => useTabsStore.getState().setPaneContext(id, cwd))
       .catch(() => {
         // The session is on its way out; its tab is going with it.
       });
   });
+}
+
+/** Starts a shell and registers it; the caller decides which tab it joins. */
+async function spawnPane(cwd?: string): Promise<TerminalPane> {
+  const settings = useSettingsStore.getState().settings;
+  const instance = await TerminalInstance.create(settings, { cwd });
+  instances.set(instance.session.id, instance);
+  watchForContext(instance);
+  return {
+    id: instance.session.id,
+    cwd: instance.session.cwd,
+    shell: instance.session.shell,
+  };
+}
+
+/** The tab a shell belongs to, if any. */
+function tabOfPane(tabs: Tab[], sessionId: string): TerminalTab | undefined {
+  return tabs.find(
+    (tab): tab is TerminalTab =>
+      tab.kind === "terminal" && tab.panes.some((pane) => pane.id === sessionId),
+  );
 }
 
 export const useTabsStore = create<TabsState>((set, get) => ({
@@ -180,72 +231,101 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     }),
   agents: {},
 
+  // The rail marks tabs, so what a shell reports is filed under its tab.
   setAgentState: (sessionId, state) =>
-    set((current) => ({ agents: { ...current.agents, [sessionId]: state } })),
+    set((current) => {
+      const tab = tabOfPane(current.tabs, sessionId);
+      if (!tab) return current;
+      return { agents: { ...current.agents, [tab.id]: state } };
+    }),
 
   openTerminal: async (spawn = {}) => {
-    const settings = useSettingsStore.getState().settings;
     try {
-      const instance = await TerminalInstance.create(settings, { cwd: spawn.cwd });
-      instances.set(instance.session.id, instance);
-      watchForContext(instance);
+      const pane = await spawnPane(spawn.cwd);
       set((state) => ({
         tabs: [
           ...state.tabs,
           {
             kind: "terminal",
-            id: instance.session.id,
+            id: pane.id,
             name: spawn.name ?? terminalName(state.tabs),
             renamed: spawn.renamed,
-            cwd: instance.session.cwd,
-            shell: instance.session.shell,
+            panes: [pane],
+            paneId: pane.id,
           },
         ],
-        activeId: instance.session.id,
+        activeId: pane.id,
         error: null,
-  viewers: {},
-
-  /** Opens a file in a tab above the terminal that named it, and shows it. */
-  openFile: (path) =>
-    set((state) => {
-      const tabId = state.activeId;
-      if (!tabId) return state;
-      const open = state.viewers[tabId]?.paths ?? [];
-      const paths = open.includes(path) ? open : [...open, path];
-      return { viewers: { ...state.viewers, [tabId]: { paths, active: path } } };
-    }),
-
-  showFile: (tabId, path) =>
-    set((state) => {
-      const open = state.viewers[tabId];
-      if (!open) return state;
-      return { viewers: { ...state.viewers, [tabId]: { ...open, active: path } } };
-    }),
-
-  closeFile: (tabId, path) =>
-    set((state) => {
-      const open = state.viewers[tabId];
-      if (!open) return state;
-      const paths = open.paths.filter((each) => each !== path);
-      if (!paths.length) {
-        const { [tabId]: _empty, ...viewers } = state.viewers;
-        return { viewers };
-      }
-      // Closing what you were looking at falls back to the neighbour, and to
-      // the terminal when that was the last file.
-      const index = open.paths.indexOf(path);
-      const active =
-        open.active === path
-          ? (paths[Math.min(index, paths.length - 1)] ?? null)
-          : open.active;
-      return { viewers: { ...state.viewers, [tabId]: { paths, active } } };
-    }),
       }));
-      return instance.session.id;
+      return pane.id;
     } catch (cause) {
       set({ error: String(cause) });
       return null;
     }
+  },
+
+  split: async () => {
+    const tab = activeTerminal();
+    if (!tab) return null;
+    const beside = tab.panes.find((pane) => pane.id === tab.paneId);
+    try {
+      const pane = await spawnPane(beside?.cwd);
+      set((state) => ({
+        tabs: state.tabs.map((each) =>
+          each.id === tab.id && each.kind === "terminal"
+            ? { ...each, panes: [...each.panes, pane], paneId: pane.id }
+            : each,
+        ),
+        error: null,
+      }));
+      return pane.id;
+    } catch (cause) {
+      set({ error: String(cause) });
+      return null;
+    }
+  },
+
+  closePane: async (sessionId) => {
+    const tab = tabOfPane(get().tabs, sessionId);
+    if (!tab) return;
+    if (tab.panes.length === 1) return get().close(tab.id);
+
+    const instance = instances.get(sessionId);
+    instances.delete(sessionId);
+    set((state) => ({
+      tabs: state.tabs.map((each) => {
+        if (each.id !== tab.id || each.kind !== "terminal") return each;
+        const index = each.panes.findIndex((pane) => pane.id === sessionId);
+        const panes = each.panes.filter((pane) => pane.id !== sessionId);
+        // The keyboard moves to the neighbour, the way closing a tab works.
+        const paneId =
+          each.paneId === sessionId
+            ? panes[Math.min(index, panes.length - 1)].id
+            : each.paneId;
+        return { ...each, panes, paneId };
+      }),
+    }));
+    await instance?.dispose();
+  },
+
+  focusPane: (sessionId) =>
+    set((state) => {
+      const tab = tabOfPane(state.tabs, sessionId);
+      if (!tab) return state;
+      return {
+        activeId: tab.id,
+        tabs: state.tabs.map((each) =>
+          each.id === tab.id ? { ...each, paneId: sessionId } : each,
+        ),
+      };
+    }),
+
+  stepPane: (direction) => {
+    const tab = activeTerminal();
+    if (!tab || tab.panes.length < 2) return;
+    const index = tab.panes.findIndex((pane) => pane.id === tab.paneId);
+    const next = (index + direction + tab.panes.length) % tab.panes.length;
+    get().focusPane(tab.panes[next].id);
   },
 
   openSettings: (name) => {
@@ -271,8 +351,9 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       }
       // A name given by hand comes back; a number is handed out again, so a
       // session restored without its first tab does not start at two.
+      const [first, ...rest] = tab.panes?.length ? tab.panes : [{ cwd: tab.cwd }];
       const id = await get().openTerminal({
-        cwd: tab.cwd,
+        cwd: first.cwd,
         name: tab.renamed ? tab.name : undefined,
         renamed: tab.renamed,
       });
@@ -280,6 +361,21 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       // Seeded right away, before anything can render against an empty draft.
       onOpen?.(id, index);
       ids.push(id);
+      // The other shells of a split tab, each where it was.
+      for (const pane of rest) {
+        try {
+          const opened = await spawnPane(pane.cwd);
+          set((state) => ({
+            tabs: state.tabs.map((each) =>
+              each.id === id && each.kind === "terminal"
+                ? { ...each, panes: [...each.panes, opened] }
+                : each,
+            ),
+          }));
+        } catch {
+          // One shell short is better than no tab at all.
+        }
+      }
     }
     const active = ids[activeIndex] ?? ids[ids.length - 1] ?? null;
     if (active) set({ activeId: active });
@@ -287,11 +383,18 @@ export const useTabsStore = create<TabsState>((set, get) => ({
 
   /** Closes a tab; a terminal takes its whole process tree with it. */
   close: async (id) => {
-    const instance = instances.get(id);
-    instances.delete(id);
+    const tab = get().tabs.find((each) => each.id === id);
+    const gone =
+      tab?.kind === "terminal"
+        ? tab.panes.flatMap((pane) => {
+            const instance = instances.get(pane.id);
+            instances.delete(pane.id);
+            return instance ? [instance] : [];
+          })
+        : [];
     set((state) => {
-      const index = state.tabs.findIndex((tab) => tab.id === id);
-      const tabs = state.tabs.filter((tab) => tab.id !== id);
+      const index = state.tabs.findIndex((each) => each.id === id);
+      const tabs = state.tabs.filter((each) => each.id !== id);
       const activeId =
         state.activeId === id
           ? (tabs[Math.min(index, tabs.length - 1)]?.id ?? null)
@@ -301,7 +404,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       return { tabs, activeId, viewers, agents };
     });
 
-    await instance?.dispose();
+    await Promise.all(gone.map((instance) => instance.dispose()));
     // A terminal app with no tabs at all is not useful.
     if (get().tabs.length === 0) await get().openTerminal();
   },
@@ -328,17 +431,17 @@ export const useTabsStore = create<TabsState>((set, get) => ({
    * Where the shell is now.
    *
    * The directory a terminal was started in is not the one it is in a minute
-   * later, and both the tab's name and the header's path are about the second.
+   * later, and the header's path is about the second.
    */
-  setTabContext: (id, cwd) =>
+  setPaneContext: (sessionId, cwd) =>
     set((state) => ({
       tabs: state.tabs.map((tab) =>
-        tab.id === id && tab.kind === "terminal"
+        tab.kind === "terminal" && tab.panes.some((pane) => pane.id === sessionId)
           ? {
               ...tab,
-              // Only the directory: the header shows it, and the name in the
-              // rail stays what it was.
-              cwd,
+              panes: tab.panes.map((pane) =>
+                pane.id === sessionId ? { ...pane, cwd } : pane,
+              ),
             }
           : tab,
       ),
@@ -355,9 +458,44 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     }),
 }));
 
-/** The terminal the composer and the search talk to, if a terminal is active. */
+/** The terminal tab on screen, if a terminal tab is on screen. */
 export function activeTerminal(): TerminalTab | null {
-  const { tabs, activeId } = useTabsStore.getState();
-  const tab = tabs.find((entry) => entry.id === activeId);
+  return selectActiveTerminal(useTabsStore.getState());
+}
+
+export function selectActiveTerminal(state: {
+  tabs: Tab[];
+  activeId: string | null;
+}): TerminalTab | null {
+  const tab = state.tabs.find((entry) => entry.id === state.activeId);
   return tab?.kind === "terminal" ? tab : null;
+}
+
+/** The shell the keyboard reaches: the focused pane of the tab on screen. */
+export function selectActivePane(state: {
+  tabs: Tab[];
+  activeId: string | null;
+}): TerminalPane | null {
+  const tab = selectActiveTerminal(state);
+  return tab?.panes.find((pane) => pane.id === tab.paneId) ?? null;
+}
+
+/**
+ * Its id, as a selector: a string compares by value, so components that only
+ * need to know which shell they talk to do not re-render for a `cd` in it.
+ */
+export function selectActiveSession(state: {
+  tabs: Tab[];
+  activeId: string | null;
+}): string | null {
+  return selectActiveTerminal(state)?.paneId ?? null;
+}
+
+export function activeSession(): string | null {
+  return selectActiveSession(useTabsStore.getState());
+}
+
+/** The live terminal behind the focused pane, if there is one. */
+export function activeInstance(): TerminalInstance | null {
+  return getInstance(activeSession());
 }

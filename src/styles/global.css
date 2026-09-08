@@ -178,6 +178,28 @@ body {
   cursor: pointer;
 }
 
+.sidebar__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* How many shells a split tab holds. */
+.sidebar__panes {
+  flex: none;
+  margin-left: 6px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--border);
+  color: var(--text-dim);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.sidebar__item--active .sidebar__panes {
+  color: var(--accent);
+}
+
 /* A tab that wants something says so without stealing the view. */
 .sidebar__agent {
   flex: none;
@@ -588,6 +610,28 @@ button.viewer-tabs__tab {
 
 .app__pane--hidden {
   display: none;
+}
+
+/* A tab's shells side by side, each taking an equal share. */
+.app__split {
+  display: flex;
+  min-width: 0;
+}
+
+.app__split > .terminal-view {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* A hairline between neighbours, drawn on the left of every one but the
+   first. The focused one gets a brighter line under its top edge instead of
+   a frame: enough to find it, not enough to crowd the text. */
+.app__split > .terminal-view + .terminal-view {
+  border-left: 1px solid var(--border);
+}
+
+.terminal-view--focused {
+  box-shadow: inset 0 2px 0 var(--accent);
 }
 
 .app__error {

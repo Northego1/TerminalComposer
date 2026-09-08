@@ -478,6 +478,11 @@ function translateKey(event: KeyboardEvent): string | null {
   if (event.ctrlKey) {
     // Ctrl+Shift belongs to the application, not to the terminal.
     if (event.shiftKey) return null;
+    // Ctrl+Backspace deletes the word before the cursor, as it does in every
+    // text field. The terminal has no such key: xterm sends a plain backspace
+    // for it. Ctrl+W is the line discipline's word-erase, and the same key in
+    // readline, zsh and most full-screen programs, so that is what it becomes.
+    if (event.code === "Backspace") return "\x17";
     return controlCharacter(event.code);
   }
 

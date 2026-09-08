@@ -51,3 +51,16 @@ export function onLastLine(state: EditorState): boolean {
     .textBetween(to, state.doc.content.size, "\n", "\n")
     .includes("\n");
 }
+
+/**
+ * How much Ctrl+Backspace takes off the end of `before`, the text between the
+ * start of the line and the caret: the spaces after the last word, then the
+ * word. Zero at the start of a line and against an attachment (which reads as
+ * U+FFFC), where the ordinary Backspace is the right thing.
+ */
+export function wordEraseLength(before: string): number {
+  if (!before || before.endsWith("\ufffc")) return 0;
+  const trimmed = before.replace(/\s+$/, "");
+  const kept = trimmed.replace(/[^\s\ufffc]+$/, "");
+  return before.length - kept.length;
+}
