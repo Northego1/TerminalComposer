@@ -20,7 +20,8 @@ export const EN = {
   "sidebar.agent.waiting": "The agent has answered",
   "sidebar.settings": "Settings",
   "sidebar.terminalName": "Terminal {n}",
-  "sidebar.panes": "{n} shells side by side",
+  "sidebar.paneName": "Shell {n}",
+  "sidebar.closePane": "Close this shell",
 
   "composer.placeholder": "Write a message or a command…",
   "composer.hint":
@@ -98,7 +99,8 @@ export const RU: Record<StringKey, string> = {
   "sidebar.agent.waiting": "Агент ответил",
   "sidebar.settings": "Настройки",
   "sidebar.terminalName": "Терминал {n}",
-  "sidebar.panes": "Терминалов рядом: {n}",
+  "sidebar.paneName": "Shell {n}",
+  "sidebar.closePane": "Закрыть этот терминал",
 
   "composer.placeholder": "Напишите сообщение или команду…",
   "composer.hint":

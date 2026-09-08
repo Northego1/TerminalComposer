@@ -162,11 +162,17 @@ function TabRow({
   const activate = useTabsStore((state) => state.activate);
   const close = useTabsStore((state) => state.close);
   const rename = useTabsStore((state) => state.rename);
+  const focusPane = useTabsStore((state) => state.focusPane);
+  const closePane = useTabsStore((state) => state.closePane);
+
+  const split = tab.kind === "terminal" && tab.panes.length > 1;
 
   return (
+    <div className={split ? "sidebar__split" : undefined}>
     <div
       className={[
         "sidebar__item",
+        split ? "sidebar__item--heading" : "",
         active ? "sidebar__item--active" : "",
         dragged ? "sidebar__item--dragging" : "",
         dropTarget ? "sidebar__item--drop" : "",
@@ -207,16 +213,6 @@ function TabRow({
             {tab.kind === "terminal" ? "›_" : "⚙"}
           </span>
           <span className="sidebar__name">{tab.name}</span>
-          {/* A split tab says how many shells it holds; one is the ordinary
-              case and needs no number. */}
-          {tab.kind === "terminal" && tab.panes.length > 1 && (
-            <span
-              className="sidebar__panes"
-              title={t("sidebar.panes", { n: tab.panes.length })}
-            >
-              ⫿{tab.panes.length}
-            </span>
-          )}
           {agent && agent !== "working" && (
             <span
               className={`sidebar__agent sidebar__agent--${agent}`}
@@ -237,7 +233,70 @@ function TabRow({
         ×
       </button>
     </div>
+      {/* A split tab lists its shells under its name, the way a project lists
+          its sessions: each one is a place to click, and each closes on its
+          own. The tab's own row stays the one that names, drags and closes
+          the lot. */}
+      {split &&
+        tab.panes.map((pane, index) => (
+          <PaneRow
+            key={pane.id}
+            n={index + 1}
+            cwd={pane.cwd}
+            current={active && pane.id === tab.paneId}
+            onSelect={() => focusPane(pane.id)}
+            onClose={() => void closePane(pane.id)}
+            t={t}
+          />
+        ))}
+    </div>
   );
+}
+
+interface PaneRowProps {
+  n: number;
+  cwd: string;
+  /** Whether this is the shell with the keyboard in the tab on screen. */
+  current: boolean;
+  onSelect: () => void;
+  onClose: () => void;
+  t: Translate;
+}
+
+function PaneRow({ n, cwd, current, onSelect, onClose, t }: PaneRowProps) {
+  return (
+    <div className={`sidebar__pane${current ? " sidebar__pane--current" : ""}`}>
+      <button
+        type="button"
+        className="sidebar__select sidebar__pane-select"
+        onClick={onSelect}
+        title={cwd}
+      >
+        <span className="sidebar__icon" aria-hidden="true">
+          ›_
+        </span>
+        <span className="sidebar__pane-text">
+          <span className="sidebar__name">{t("sidebar.paneName", { n })}</span>
+          <span className="sidebar__pane-cwd">{shorten(cwd)}</span>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="sidebar__close"
+        {...keepFocus}
+        onClick={onClose}
+        title={t("sidebar.closePane")}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
+/** `/home/you/work/project` reads as `~/work/project`. */
+function shorten(path: string): string {
+  const home = path.match(/^\/home\/[^/]+/)?.[0];
+  return home ? path.replace(home, "~") : path;
 }
 
 /** Which position within a group the pointer is currently over. */

@@ -184,20 +184,66 @@ body {
   text-overflow: ellipsis;
 }
 
-/* How many shells a split tab holds. */
-.sidebar__panes {
-  flex: none;
-  margin-left: 6px;
-  padding: 0 5px;
+/* A split tab: its own row as a heading, its shells listed under it. */
+.sidebar__split {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4px;
   border-radius: 8px;
-  background: var(--border);
-  color: var(--text-dim);
-  font-size: 10px;
-  line-height: 16px;
+  background: var(--bg-panel);
 }
 
-.sidebar__item--active .sidebar__panes {
+.sidebar__item--heading {
+  border-radius: 8px 8px 0 0;
+}
+
+.sidebar__item--heading .sidebar__select {
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sidebar__pane {
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
+  border-radius: 6px;
+  color: var(--text-dim);
+}
+
+.sidebar__pane:hover {
+  background: var(--bg);
+}
+
+.sidebar__pane--current {
+  background: var(--bg-elevated);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.sidebar__pane--current .sidebar__icon {
   color: var(--accent);
+}
+
+.sidebar__pane-select {
+  padding: 5px 4px 5px 8px;
+}
+
+.sidebar__pane-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.sidebar__pane-cwd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  opacity: 0.7;
 }
 
 /* A tab that wants something says so without stealing the view. */
@@ -1418,4 +1464,11 @@ button.viewer-tabs__tab {
   color: var(--text-dim);
   font-family: inherit;
   font-size: 11.5px;
+}
+
+/* Inside a split tab the highlight belongs to the shell with the keyboard,
+   not to the heading as well. */
+.sidebar__item--heading.sidebar__item--active {
+  background: transparent;
+  box-shadow: none;
 }
