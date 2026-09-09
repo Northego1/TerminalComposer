@@ -178,6 +178,11 @@ export class TerminalInstance {
    */
   setActive(active: boolean): void {
     this.term.options.cursorBlink = active;
+    // Only when it actually changes hands. A redundant focus() or blur() is
+    // not free on WebKitGTK: each one resets the platform input method, and
+    // with it whatever character it was in the middle of composing.
+    const focused = document.activeElement === this.term.textarea;
+    if (active === focused) return;
     if (active) this.term.focus();
     else this.term.blur();
   }
@@ -259,15 +264,23 @@ export class TerminalInstance {
    * behave exactly as they do for keys we leave alone.
    */
   private handleKey(event: KeyboardEvent): boolean {
-    if (event.type !== "keydown") return true;
-
-    // An input method owns this key and `watchComposition` sends what it
-    // produces. xterm must not see the key at all: its own answer to a key it
-    // cannot read is to guess at the difference in its hidden textarea, which
-    // is what sent the letters late and in batches.
+    // A key the input method owns, pressed or released. `watchComposition`
+    // sends what it produces, and xterm must not see it at all.
+    //
+    // On the press, xterm's own answer to a key it cannot read is to guess at
+    // the difference in its hidden textarea, which sent letters late and in
+    // batches. On the release it refocuses that textarea -- harmless for a key
+    // that carries its own character, fatal here: the composition carrying the
+    // next letter is in flight by then, and refocusing cancels it. That is why
+    // a burst of typing lost characters, and why it lost more of them under a
+    // program that keeps the terminal busy.
     if (!event.ctrlKey && !event.altKey && !event.metaKey) {
-      if (event.isComposing || event.keyCode === 229) return false;
+      if (event.isComposing || event.keyCode === 229 || event.keyCode === 0) {
+        return false;
+      }
     }
+
+    if (event.type !== "keydown") return true;
 
     const data = translateKey(event);
     if (data === null) return true;
