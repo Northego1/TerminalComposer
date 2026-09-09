@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Editor } from "@tiptap/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useTabsStore } from "../../app/tabsStore";
+import { activeSession } from "../../app/tabsStore";
 import { loadSpec } from "./specs";
 import { tokenAtCaret, type Token } from "./token";
 import { suggestFromSpec } from "./walkSpec";
@@ -62,7 +62,7 @@ export function useCompletion(editor: Editor | null, commandLine: boolean) {
   const lookUp = useCallback(
     (forced: boolean) => {
       if (!editor) return;
-      const sessionId = useTabsStore.getState().activeId;
+      const sessionId = activeSession();
       const current = tokenAtCaret(editor.state);
       if (!sessionId || !current) return close();
 

@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { useFocusStore } from "./focusStore";
 import { DEFAULT_SETTINGS, useSettingsStore } from "./settingsStore";
-import { getInstance, useTabsStore } from "./tabsStore";
+import { activeInstance, activeSession, useTabsStore } from "./tabsStore";
 
 interface GlobalHotkeys {
   openSearch: () => void;
@@ -73,9 +73,22 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
       case "KeyP":
         useFocusStore.getState().togglePinned();
         return true;
-      case "KeyW":
-        if (!tabs.activeId) return false;
-        void tabs.close(tabs.activeId);
+      // Another shell beside this one, and closing the one the keys are in --
+      // which is the tab itself once it is down to a single shell.
+      case "KeyD":
+        void tabs.split();
+        return true;
+      case "KeyW": {
+        const session = activeSession();
+        if (session) void tabs.closePane(session);
+        else if (tabs.activeId) void tabs.close(tabs.activeId);
+        return true;
+      }
+      case "BracketLeft":
+        tabs.stepPane(-1);
+        return true;
+      case "BracketRight":
+        tabs.stepPane(1);
         return true;
       case "Tab":
         return step(-1);
@@ -144,7 +157,7 @@ function step(direction: 1 | -1): boolean {
 }
 
 function copySelection(): boolean {
-  const selection = getInstance(useTabsStore.getState().activeId)?.selection();
+  const selection = activeInstance()?.selection();
   if (!selection) return false;
   void import("@tauri-apps/plugin-clipboard-manager").then(({ writeText }) =>
     writeText(selection),
@@ -153,7 +166,7 @@ function copySelection(): boolean {
 }
 
 async function pasteIntoTerminal(): Promise<void> {
-  const instance = getInstance(useTabsStore.getState().activeId);
+  const instance = activeInstance();
   if (!instance) return;
   const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
   const text = await readText().catch(() => "");

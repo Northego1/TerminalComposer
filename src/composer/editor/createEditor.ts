@@ -1,5 +1,6 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import Document from "@tiptap/extension-document";
 import Paragraph from "@tiptap/extension-paragraph";
 import Text from "@tiptap/extension-text";
@@ -9,7 +10,7 @@ import { AttachmentNode } from "./AttachmentNode";
 import { Highlight } from "../highlight/Highlight";
 import { Autosuggest } from "./Autosuggest";
 
-import { onFirstLine, onLastLine } from "./documentText";
+import { onFirstLine, onLastLine, wordEraseLength } from "./documentText";
 
 /**
  * What the keymap needs from the composer. Handlers return true when they
@@ -100,6 +101,8 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
                   : editor.commands.undo();
               case "KeyY":
                 return editor.commands.redo();
+              case "Backspace":
+                return deleteWordBackward(view);
               default:
                 return false;
             }
@@ -109,6 +112,28 @@ const ComposerKeymap = Extension.create<{ handlers: () => ComposerHandlers }>({
     ];
   },
 });
+
+/**
+ * Ctrl+Backspace: the word before the caret, and the spaces after it.
+ *
+ * The browser would do this itself, but tiptap binds Mod-Backspace to its own
+ * chain of commands, and with a caret in the middle of a line they all decline
+ * and the key stops there. So it is done outright: back over spaces, then over
+ * the word. At the start of a line, or against an attachment, the key is left
+ * to the usual Backspace handling, which joins lines and removes the node.
+ */
+function deleteWordBackward(view: EditorView): boolean {
+  const { state } = view;
+  const { $from, empty } = state.selection;
+  if (!empty || !$from.parent.isTextblock) return false;
+
+  const before = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc");
+  const length = wordEraseLength(before);
+  if (!length) return false;
+
+  view.dispatch(state.tr.delete($from.pos - length, $from.pos).scrollIntoView());
+  return true;
+}
 
 /**
  * A deliberately small editor: paragraphs, text, undo/redo, placeholder.

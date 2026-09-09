@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { useFocusStore } from "../app/focusStore";
 import { keepFocus } from "../app/keepFocus";
-import { getInstance, useTabsStore } from "../app/tabsStore";
+import { activeSession, getInstance, selectActiveSession, useTabsStore } from "../app/tabsStore";
 import { scheduleWorkspaceSave } from "../app/workspace";
 import { t as translate, useT } from "../i18n";
 import { isEmptyMessage, type Message } from "../message/types";
@@ -120,7 +120,7 @@ export function Composer({
       () => handlers.current,
       () => translate("composer.placeholder"),
       (typed) => continuationOf(sharedHistory(), typed),
-      () => useTabsStore.getState().activeId,
+      () => activeSession(),
     ),
     editorProps: {
       attributes: { class: "composer__editor" },
@@ -264,7 +264,10 @@ export function Composer({
   // belongs to the session that is open, and comes back when it is again.
   const tabs = useTabsStore((state) => state.tabs);
   const activeId = useTabsStore((state) => state.activeId);
-  const sessionContext = useSessionContext(activeId);
+  // The draft belongs to the tab; the shell it is written for is the focused
+  // pane of that tab.
+  const sessionId = useTabsStore(selectActiveSession);
+  const sessionContext = useSessionContext(sessionId);
 
   useEffect(() => {
     if (!editor || loadedId.current === activeId) return;
@@ -291,12 +294,12 @@ export function Composer({
    * typed -- the shell reports everything it runs, so the two are one list.
    */
   useEffect(() => {
-    if (!activeId) return;
-    return getInstance(activeId)?.onCommand((command) => {
+    if (!sessionId) return;
+    return getInstance(sessionId)?.onCommand((command) => {
       rememberCommand(command);
       scheduleWorkspaceSave();
     });
-  }, [activeId]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (!editor) return;

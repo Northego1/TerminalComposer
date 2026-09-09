@@ -2,7 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { hooksInstalled, installHooks, onAgentEvent, removeHooks } from "./agent/events";
 import { useFocusStore } from "./app/focusStore";
-import { forEachInstance, getInstance, useTabsStore } from "./app/tabsStore";
+import {
+  activeSession,
+  forEachInstance,
+  getInstance,
+  selectActivePane,
+  selectActiveSession,
+  useTabsStore,
+} from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
 import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
@@ -51,6 +58,9 @@ const SLIDE_MS = 160;
 export default function App() {
   const tabs = useTabsStore((state) => state.tabs);
   const activeId = useTabsStore((state) => state.activeId);
+  /** The shell the keyboard reaches: the focused pane of the tab on screen. */
+  const sessionId = useTabsStore(selectActiveSession);
+  const activePane = useTabsStore(selectActivePane);
   const error = useTabsStore((state) => state.error);
   const settings = useSettingsStore((state) => state.settings);
   const pane = useFocusStore((state) => state.pane);
@@ -95,11 +105,16 @@ export default function App() {
    * the keys go somewhere else entirely.
    */
   useEffect(() => {
-    const instance = getInstance(activeId);
+    // Every other shell loses the blinking cursor as well as the keys, so two
+    // panes side by side never both claim to be the one being typed into.
+    forEachInstance((instance) => {
+      if (instance.session.id !== sessionId) instance.blur();
+    });
+    const instance = getInstance(sessionId);
     if (!instance) return;
     if (pane === "terminal") instance.focus();
     else instance.blur();
-  }, [pane, activeId]);
+  }, [pane, sessionId]);
 
   /**
    * Never leave the keyboard with nobody.
@@ -112,7 +127,7 @@ export default function App() {
     const restore = () => {
       if (document.activeElement && document.activeElement !== document.body) return;
       if (useFocusStore.getState().pane === "terminal") {
-        getInstance(useTabsStore.getState().activeId)?.focus();
+        getInstance(activeSession())?.focus();
       } else {
         document.querySelector<HTMLElement>(".composer__editor")?.focus();
       }
@@ -140,18 +155,11 @@ export default function App() {
     const unlisten = onAgentEvent((sessionId, state) => {
       const tabs = useTabsStore.getState();
       tabs.setAgentState(sessionId, state);
-      if (sessionId !== tabs.activeId) return;
+      if (sessionId !== activeSession()) return;
       suggestPane(state === "waiting" ? "composer" : "terminal");
     });
     return () => void unlisten.then((stop) => stop());
   }, [suggestPane]);
-
-  useEffect(() => {
-    const instance = getInstance(activeId);
-    if (!instance) return;
-    if (pane === "terminal") instance.focus();
-    else instance.blur();
-  }, [pane, activeId]);
 
   /**
    * Who owns the keyboard, decided by what the shell reports about itself.
@@ -173,7 +181,7 @@ export default function App() {
   const viewingFile = viewing?.active ?? null;
 
   useEffect(() => {
-    const instance = getInstance(activeId);
+    const instance = getInstance(sessionId);
     setShellState(instance?.shellState ?? "unknown");
     return instance?.onShellStateChange((state) => {
       setShellState(state);
@@ -185,11 +193,11 @@ export default function App() {
         suggestPane("terminal");
       }
     });
-  }, [activeId, suggestPane]);
+  }, [sessionId, suggestPane]);
 
   const handleSubmit = useCallback(
     (message: Message) => {
-      const instance = getInstance(useTabsStore.getState().activeId);
+      const instance = getInstance(activeSession());
       if (!instance || isEmptyMessage(message)) return;
       void instance.submit(getAdapter().serialize(message, instance.capabilities));
       // Whatever was sent, the answer comes back in the terminal -- output, a
@@ -203,11 +211,11 @@ export default function App() {
 
 
   const handleAbort = useCallback(() => {
-    getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().abort());
+    getInstance(activeSession())?.submit(getAdapter().abort());
   }, []);
 
   const handleInterrupt = useCallback(() => {
-    getInstance(useTabsStore.getState().activeId)?.submit(getAdapter().interrupt());
+    getInstance(activeSession())?.submit(getAdapter().interrupt());
   }, []);
 
   const active = tabs.find((tab) => tab.id === activeId);
@@ -224,13 +232,13 @@ export default function App() {
             click on it maximises. */}
         <header className="app__header" data-tauri-drag-region>
           <span className="app__title">{active?.name ?? "Terminal Composer"}</span>
-          {active?.kind === "terminal" && (
+          {activePane && (
             <>
               <span className="app__crumb" aria-hidden="true">
                 /
               </span>
-              <span className="app__subtitle" title={active.cwd}>
-                {active.cwd}
+              <span className="app__subtitle" title={activePane.cwd}>
+                {activePane.cwd}
               </span>
             </>
           )}
@@ -239,7 +247,7 @@ export default function App() {
           {onTerminal && shellState !== "unknown" && (
             <span
               className={`app__badge app__badge--${shellState}`}
-              title={active?.kind === "terminal" ? active.shell : undefined}
+              title={activePane?.shell}
             >
               <span className="app__led" aria-hidden="true" />
               {t(shellState === "running" ? "app.shell.running" : "app.shell.prompt")}
@@ -291,11 +299,27 @@ export default function App() {
                 </div>
               );
             }
-            const instance = getInstance(tab.id);
+              // The tab's shells side by side. Only the focused one blinks and
+              // takes the keys; a click on any of them makes it the focused one.
               return (
-                instance && (
-                  <TerminalView key={tab.id} instance={instance} active={isActive} />
-                )
+                <div
+                  key={tab.id}
+                  className={`app__pane app__split${isActive ? "" : " app__pane--hidden"}`}
+                >
+                  {tab.panes.map((paneEntry) => {
+                    const instance = getInstance(paneEntry.id);
+                    return (
+                      instance && (
+                        <TerminalView
+                          key={paneEntry.id}
+                          instance={instance}
+                          active={isActive}
+                          focused={tab.panes.length > 1 && paneEntry.id === tab.paneId}
+                        />
+                      )
+                    );
+                  })}
+                </div>
               );
             })}
           </div>

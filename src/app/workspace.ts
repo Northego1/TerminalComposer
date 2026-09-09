@@ -19,7 +19,10 @@ export interface PersistedTab {
   name: string;
   /** Whether the name was given by hand; an automatic one is derived again. */
   renamed?: boolean;
+  /** Older files kept one directory per tab; `panes` replaced it. */
   cwd?: string;
+  /** One entry per shell, left to right. */
+  panes?: Array<{ cwd: string }>;
   composer?: ComposerState;
 }
 
@@ -50,7 +53,7 @@ function snapshot(): Workspace {
             kind: tab.kind,
             name: tab.name,
             renamed: tab.renamed,
-            cwd: tab.cwd,
+            panes: tab.panes.map((pane) => ({ cwd: pane.cwd })),
             composer: loadComposerState(tab.id),
           }
         : { kind: tab.kind, name: tab.name },

@@ -4,7 +4,7 @@ import { EditorState } from "@tiptap/pm/state";
 import { describe, expect, it } from "vitest";
 
 import { composerExtensions, type ComposerHandlers } from "../createEditor";
-import { docToText, onFirstLine, onLastLine } from "../documentText";
+import { docToText, onFirstLine, onLastLine, wordEraseLength } from "../documentText";
 
 /** One paragraph per line -- the shape the editor produces for plain text. */
 const textToContent = (text: string) => ({
@@ -71,5 +71,25 @@ describe("caret edges", () => {
     );
     expect(onFirstLine(selected)).toBe(false);
     expect(onLastLine(selected)).toBe(false);
+  });
+});
+
+describe("wordEraseLength", () => {
+  it("takes the word before the caret", () => {
+    expect(wordEraseLength("git commit")).toBe(6);
+  });
+
+  it("takes trailing spaces together with the word before them", () => {
+    expect(wordEraseLength("git commit   ")).toBe(9);
+  });
+
+  it("stops at the start of the line", () => {
+    expect(wordEraseLength("git")).toBe(3);
+    expect(wordEraseLength("")).toBe(0);
+  });
+
+  it("leaves an attachment to the ordinary backspace", () => {
+    expect(wordEraseLength("see \ufffc")).toBe(0);
+    expect(wordEraseLength("\ufffc word")).toBe(4);
   });
 });
