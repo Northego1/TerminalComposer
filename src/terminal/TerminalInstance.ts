@@ -76,6 +76,8 @@ export class TerminalInstance {
     this.watchTitle();
     this.linkPaths();
     this.term.open(this.element);
+    // The textarea composition is written into exists only once xterm is open.
+    this.watchComposition();
   }
 
   static async create(
@@ -259,6 +261,14 @@ export class TerminalInstance {
   private handleKey(event: KeyboardEvent): boolean {
     if (event.type !== "keydown") return true;
 
+    // An input method owns this key and `watchComposition` sends what it
+    // produces. xterm must not see the key at all: its own answer to a key it
+    // cannot read is to guess at the difference in its hidden textarea, which
+    // is what sent the letters late and in batches.
+    if (!event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (event.isComposing || event.keyCode === 229) return false;
+    }
+
     const data = translateKey(event);
     if (data === null) return true;
 
@@ -267,6 +277,60 @@ export class TerminalInstance {
     event.preventDefault();
     this.term.input(data);
     return false;
+  }
+
+  /**
+   * Input an input method delivers, rather than the keyboard.
+   *
+   * With a non-Latin layout WebKitGTK hands every key to the platform input
+   * method: the keydown carries no character at all (`keyCode` 229, `key`
+   * "Unidentified") and the letter arrives as a composition -- one that ends
+   * without ever having started, since no `compositionstart` is sent.
+   *
+   * xterm.js pairs those two events, and with no start to anchor to it falls
+   * back to the contents of its hidden textarea, which nothing clears. A
+   * keystroke then produced no letter at all, and a later one produced a copy
+   * of everything typed before it.
+   *
+   * So composition is taken over here: the events are stopped before xterm
+   * sees them, and the text is sent once, when the insertion carrying it
+   * arrives. It is fed back through xterm's own input path, exactly as typed
+   * keys are.
+   */
+  private watchComposition(): void {
+    const textarea = this.term.textarea;
+    if (!textarea) return;
+
+    // Capturing on the container, which the textarea sits inside: xterm listens
+    // on the textarea itself, so this runs first and can keep events from it.
+    const capture = (type: string, handler: (event: Event) => void): void => {
+      this.element.addEventListener(type, handler, true);
+      this.disposers.push(() =>
+        this.element.removeEventListener(type, handler, true),
+      );
+    };
+
+    for (const type of [
+      "compositionstart",
+      "compositionupdate",
+      "compositionend",
+    ]) {
+      capture(type, (event) => event.stopImmediatePropagation());
+    }
+
+    capture("input", (event) => {
+      const { data, inputType } = event as InputEvent;
+      // Pre-edit text is not input yet -- it becomes input when the input
+      // method commits it -- and a paste is xterm's own event, handled there.
+      if (inputType === "insertCompositionText") return;
+      if (inputType === "insertFromPaste") return;
+
+      event.stopImmediatePropagation();
+      // Nothing reads the textarea any more, and left alone it grows for as
+      // long as the session lives.
+      textarea.value = "";
+      if (data) this.term.input(data);
+    });
   }
 
   /**
@@ -485,9 +549,6 @@ function translateKey(event: KeyboardEvent): string | null {
     if (event.code === "Backspace") return "\x17";
     return controlCharacter(event.code);
   }
-
-  // Mid-composition the textarea owns the input, and it must keep it.
-  if (event.isComposing || event.keyCode === 229) return null;
 
   return event.key.length === 1 ? event.key : null;
 }
