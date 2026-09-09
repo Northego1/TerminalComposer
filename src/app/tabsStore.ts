@@ -4,6 +4,20 @@ import type { AgentState } from "../agent/events";
 import { t } from "../i18n";
 import { context } from "../terminal/ptyClient";
 import { TerminalInstance } from "../terminal/TerminalInstance";
+import {
+  flatLayout,
+  fromPersisted,
+  paneNode,
+  movePane,
+  panesOf,
+  removePane,
+  resize,
+  splitPane,
+  type Side,
+  type Layout,
+  type PersistedLayout,
+  type SplitDirection,
+} from "./layout";
 import { useSettingsStore } from "./settingsStore";
 
 /**
@@ -17,6 +31,8 @@ export interface TerminalPane {
   cwd: string;
   shell: string;
 }
+
+export type { SplitDirection } from "./layout";
 
 /**
  * The left rail lists tabs, and a tab is either a terminal or a settings page.
@@ -37,8 +53,14 @@ export interface TerminalTab {
    * Without it a name typed by hand would be overwritten by the next `cd`.
    */
   renamed?: boolean;
-  /** Left to right. Never empty: a tab with no shells closes itself. */
+  /** In split order. Never empty: a tab with no shells closes itself. */
   panes: TerminalPane[];
+  /**
+   * Where those shells sit relative to each other: a tree of splits, so a
+   * split divides the shell it was asked to divide and nothing else. Every
+   * shell in `panes` is a leaf of it, and every leaf is one of them.
+   */
+  layout: Layout;
   /** The pane that has the keyboard whenever this tab is the one on screen. */
   paneId: string;
 }
@@ -97,16 +119,34 @@ interface TabsState {
     renamed?: boolean;
   }) => Promise<string | null>;
   /**
-   * Opens another shell beside the ones in the active tab, in the directory
-   * the focused one is in, and gives it the keyboard.
+   * Splits the focused shell in two, in the direction asked for: the new one
+   * opens in the directory the focused one is in, takes half of its space and
+   * gets the keyboard. Only that shell is divided -- its neighbours stay
+   * exactly where they are.
    */
-  split: () => Promise<string | null>;
+  split: (direction?: SplitDirection) => Promise<string | null>;
+  /**
+   * Moves the boundary between two neighbouring shells, as dragging the
+   * splitter between them does.
+   */
+  resizeSplit: (
+    tabId: string,
+    splitId: string,
+    index: number,
+    before: number,
+    after: number,
+  ) => void;
   /** Closes one shell; closing the last one in a tab closes the tab. */
   closePane: (sessionId: string) => Promise<void>;
   /** Gives one shell the keyboard, showing its tab if it is not the one shown. */
   focusPane: (sessionId: string) => void;
   /** Moves the keyboard to the neighbouring shell in the active tab. */
   stepPane: (direction: 1 | -1) => void;
+  /**
+   * Moves a shell to the side of another one, as dragging it there does. Both
+   * are in the same tab; the shell keeps everything it is running.
+   */
+  movePane: (paneId: string, besideId: string, side: Side) => void;
   openSettings: (name?: string) => void;
   restore: (
     saved: Array<{
@@ -114,7 +154,9 @@ interface TabsState {
       name: string;
       renamed?: boolean;
       cwd?: string;
-      panes?: Array<{ cwd?: string }>;
+      panes?: Array<{ cwd?: string; size?: number }>;
+      direction?: SplitDirection;
+      layout?: PersistedLayout;
     }>,
     activeIndex: number,
     onOpen?: (id: string, index: number) => void,
@@ -178,6 +220,16 @@ async function spawnPane(cwd?: string): Promise<TerminalPane> {
     cwd: instance.session.cwd,
     shell: instance.session.shell,
   };
+}
+
+/**
+ * A fresh id for a split in the layout tree.
+ *
+ * Splits are not sessions and have nothing to be named after, but a drag has
+ * to say which boundary of which split it is moving.
+ */
+function splitId(): string {
+  return crypto.randomUUID();
 }
 
 /** The tab a shell belongs to, if any. */
@@ -252,6 +304,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
             renamed: spawn.renamed,
             panes: [pane],
             paneId: pane.id,
+            layout: paneNode(pane.id),
           },
         ],
         activeId: pane.id,
@@ -264,21 +317,36 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     }
   },
 
-  split: async () => {
+  split: async (direction = "row") => {
     const tab = activeTerminal();
     if (!tab) return null;
     const beside = tab.panes.find((pane) => pane.id === tab.paneId);
     try {
-      const pane = await spawnPane(beside?.cwd);
+      const opened = await spawnPane(beside?.cwd);
       set((state) => ({
-        tabs: state.tabs.map((each) =>
-          each.id === tab.id && each.kind === "terminal"
-            ? { ...each, panes: [...each.panes, pane], paneId: pane.id }
-            : each,
-        ),
+        tabs: state.tabs.map((each) => {
+          if (each.id !== tab.id || each.kind !== "terminal") return each;
+          // Beside the shell it was split from in the rail as well as on
+          // screen, so both read in the same order.
+          const index = each.panes.findIndex((pane) => pane.id === beside?.id);
+          const panes = [...each.panes];
+          panes.splice(index + 1, 0, opened);
+          return {
+            ...each,
+            panes,
+            paneId: opened.id,
+            layout: splitPane(
+              each.layout,
+              beside?.id ?? each.paneId,
+              direction,
+              opened.id,
+              splitId,
+            ),
+          };
+        }),
         error: null,
       }));
-      return pane.id;
+      return opened.id;
     } catch (cause) {
       set({ error: String(cause) });
       return null;
@@ -302,11 +370,22 @@ export const useTabsStore = create<TabsState>((set, get) => ({
           each.paneId === sessionId
             ? panes[Math.min(index, panes.length - 1)].id
             : each.paneId;
-        return { ...each, panes, paneId };
+        // The tab holds at least one shell here, so the tree does too.
+        const layout = removePane(each.layout, sessionId) ?? each.layout;
+        return { ...each, panes, paneId, layout };
       }),
     }));
     await instance?.dispose();
   },
+
+  resizeSplit: (tabId, splitId, index, before, after) =>
+    set((state) => ({
+      tabs: state.tabs.map((tab) =>
+        tab.id === tabId && tab.kind === "terminal"
+          ? { ...tab, layout: resize(tab.layout, splitId, index, before, after) }
+          : tab,
+      ),
+    })),
 
   focusPane: (sessionId) =>
     set((state) => {
@@ -316,6 +395,26 @@ export const useTabsStore = create<TabsState>((set, get) => ({
         activeId: tab.id,
         tabs: state.tabs.map((each) =>
           each.id === tab.id ? { ...each, paneId: sessionId } : each,
+        ),
+      };
+    }),
+
+  movePane: (paneId, besideId, side) =>
+    set((state) => {
+      const tab = tabOfPane(state.tabs, paneId);
+      if (!tab || paneId === besideId) return state;
+      if (!tab.panes.some((pane) => pane.id === besideId)) return state;
+
+      const layout = movePane(tab.layout, paneId, besideId, side, splitId);
+      // The rail lists the shells in the order they are drawn, so it follows
+      // the layout rather than the order they were opened in.
+      const order = panesOf(layout);
+      const panes = [...tab.panes].sort(
+        (one, other) => order.indexOf(one.id) - order.indexOf(other.id),
+      );
+      return {
+        tabs: state.tabs.map((each) =>
+          each.id === tab.id ? { ...each, layout, panes } : each,
         ),
       };
     }),
@@ -361,21 +460,43 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       // Seeded right away, before anything can render against an empty draft.
       onOpen?.(id, index);
       ids.push(id);
-      // The other shells of a split tab, each where it was.
+      // The other shells of a split tab, each where it was. A shell that fails
+      // to spawn leaves a gap the layout closes over: one shell short is
+      // better than no tab at all.
+      const opened: Array<string | undefined> = [id];
       for (const pane of rest) {
         try {
-          const opened = await spawnPane(pane.cwd);
+          const added = await spawnPane(pane.cwd);
+          opened.push(added.id);
           set((state) => ({
             tabs: state.tabs.map((each) =>
               each.id === id && each.kind === "terminal"
-                ? { ...each, panes: [...each.panes, opened] }
+                ? { ...each, panes: [...each.panes, added] }
                 : each,
             ),
           }));
         } catch {
-          // One shell short is better than no tab at all.
+          opened.push(undefined);
         }
       }
+      // How they were arranged. Files written before there were trees say only
+      // which way the whole tab was split, which is one split holding them all.
+      const live = opened.filter((each): each is string => Boolean(each));
+      const layout =
+        (tab.layout && fromPersisted(tab.layout, opened, splitId)) ??
+        flatLayout(
+          live,
+          tab.direction ?? "row",
+          (tab.panes ?? []).map((pane) => pane.size),
+          splitId,
+        );
+      set((state) => ({
+        tabs: state.tabs.map((each) =>
+          each.id === id && each.kind === "terminal"
+            ? { ...each, layout }
+            : each,
+        ),
+      }));
     }
     const active = ids[activeIndex] ?? ids[ids.length - 1] ?? null;
     if (active) set({ activeId: active });

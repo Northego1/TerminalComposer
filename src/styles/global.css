@@ -42,6 +42,83 @@ body {
   height: 100%;
 }
 
+/*
+ * The resize border of a window that has no frame; see `ResizeHandles`.
+ *
+ * Fixed to the viewport, which is the window: four edges four pixels wide --
+ * enough to hit without being in the way of what is under them -- and corners
+ * twice that, since a corner is what a diagonal resize needs. Above every
+ * pane, below nothing.
+ */
+.resize-handle {
+  position: fixed;
+  z-index: 100;
+}
+
+.resize-handle--north,
+.resize-handle--south {
+  left: 0;
+  right: 0;
+  height: 4px;
+  cursor: ns-resize;
+}
+
+.resize-handle--west,
+.resize-handle--east {
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+}
+
+.resize-handle--north {
+  top: 0;
+}
+
+.resize-handle--south {
+  bottom: 0;
+}
+
+.resize-handle--west {
+  left: 0;
+}
+
+.resize-handle--east {
+  right: 0;
+}
+
+.resize-handle--northwest,
+.resize-handle--northeast,
+.resize-handle--southwest,
+.resize-handle--southeast {
+  width: 8px;
+  height: 8px;
+}
+
+.resize-handle--northwest {
+  top: 0;
+  left: 0;
+  cursor: nwse-resize;
+}
+
+.resize-handle--northeast {
+  top: 0;
+  right: 0;
+  cursor: nesw-resize;
+}
+
+.resize-handle--southwest {
+  bottom: 0;
+  left: 0;
+  cursor: nesw-resize;
+}
+
+.resize-handle--southeast {
+  bottom: 0;
+  right: 0;
+  cursor: nwse-resize;
+}
+
 .app__main {
   position: relative;
   display: flex;
@@ -385,12 +462,20 @@ body {
   min-width: 0;
 }
 
+/* Everything after it is the header's right-hand end. One spacer holds that
+   end against the edge, rather than an auto margin on each of them: two auto
+   margins would share the free space between themselves and leave the badge
+   adrift in the middle. */
+.app__spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
 .app__badge {
   display: flex;
   align-items: center;
   gap: 6px;
   flex: none;
-  margin-left: auto;
   /* Nothing may take a drag that belongs to the header. */
   -webkit-user-select: none;
   padding: 3px 9px 3px 7px;
@@ -417,6 +502,36 @@ body {
 }
 
 /* ---- the window's own frame ---- */
+
+/* The split buttons and the window buttons are the same buttons in different
+   clothes: one shape, one hover, one row. */
+.split-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.split-controls__button {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.split-controls__button:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
 
 .window-controls {
   display: flex;
@@ -658,22 +773,73 @@ button.viewer-tabs__tab {
   display: none;
 }
 
-/* A tab's shells side by side, each taking an equal share. */
+/* A tab's shells, beside each other or one above the other. How much of the
+   tab each one takes is its own share, set inline from the store. */
 .app__split {
   display: flex;
+  height: 100%;
   min-width: 0;
 }
 
-.app__split > .terminal-view {
-  flex: 1 1 0;
-  min-width: 0;
+.app__split--row {
+  flex-direction: row;
 }
 
-/* A hairline between neighbours, drawn on the left of every one but the
-   first. The focused one gets a brighter line under its top edge instead of
-   a frame: enough to find it, not enough to crowd the text. */
-.app__split > .terminal-view + .terminal-view {
-  border-left: 1px solid var(--border);
+.app__split--column {
+  flex-direction: column;
+}
+
+/* A child of a split is a terminal or another split, and both take their
+   share of it the same way. A nested split stretches to its parent instead of
+   claiming the full height, which in a column would be the whole tab. */
+.app__split > .terminal-view,
+.app__split > .app__split {
+  flex-basis: 0;
+  min-width: 0;
+  min-height: 0;
+}
+
+.app__split > .app__split {
+  height: auto;
+}
+
+/* The hairline between neighbours, which is also what drags them. It stays a
+   hairline and grows a wider invisible strip to be grabbed by, so the seam
+   between two terminals reads as a seam and not as a gutter. The focused
+   terminal gets a brighter line under its top edge instead of a frame: enough
+   to find it, not enough to crowd the text. */
+.app__splitter {
+  position: relative;
+  flex: none;
+  background: var(--border);
+}
+
+.app__splitter::after {
+  content: "";
+  position: absolute;
+}
+
+.app__splitter:hover,
+.app__splitter:active {
+  background: var(--accent);
+}
+
+.app__split--row > .app__splitter {
+  width: 1px;
+  cursor: col-resize;
+}
+
+.app__split--row > .app__splitter::after {
+  inset: 0 -3px;
+}
+
+.app__split--column > .app__splitter {
+  height: 1px;
+  cursor: row-resize;
+}
+
+.app__split--column > .app__splitter::after {
+  inset: -3px 0;
 }
 
 .terminal-view--focused {
@@ -705,8 +871,99 @@ button.viewer-tabs__tab {
   display: none;
 }
 
+.terminal-view__surface {
+  height: 100%;
+}
+
 .terminal-surface {
   height: 100%;
+}
+
+/*
+ * Moving a shell and closing it, in the corner of the shell itself.
+ *
+ * Out of sight until the pointer is in that terminal: they are about the
+ * arrangement, not about what is running, and a terminal being read should
+ * show nothing but its own text.
+ */
+.terminal-view__controls {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: var(--bg-panel);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.terminal-view:hover .terminal-view__controls,
+.terminal-view__controls:focus-within {
+  opacity: 1;
+}
+
+.terminal-view__control {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: grab;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.terminal-view__control:hover {
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.terminal-view__control:active {
+  cursor: grabbing;
+}
+
+.terminal-view__control--close {
+  cursor: pointer;
+}
+
+.terminal-view__control--close:hover {
+  background: #c0392b;
+  color: #fff;
+}
+
+/* The shell being carried, and the half of another shell it would land in. */
+.terminal-view--dragging {
+  opacity: 0.55;
+}
+
+.terminal-view__landing {
+  position: absolute;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  pointer-events: none;
+}
+
+.terminal-view__landing--left {
+  inset: 0 50% 0 0;
+}
+
+.terminal-view__landing--right {
+  inset: 0 0 0 50%;
+}
+
+.terminal-view__landing--top {
+  inset: 0 0 50% 0;
+}
+
+.terminal-view__landing--bottom {
+  inset: 50% 0 0 0;
 }
 
 .app__composer--hidden {
