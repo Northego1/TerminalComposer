@@ -12,9 +12,17 @@ import type {
 import { findCandidates } from "../viewer/paths";
 import { resolvePaths } from "../viewer/fileClient";
 import * as pty from "./ptyClient";
+import { KeyQueue } from "./keyQueue";
 
 /** What the shell reports about itself, when it reports anything. */
 export type ShellState = "unknown" | "prompt" | "running";
+
+/**
+ * How long a key whose letter is not readable yet may hold up the keys typed
+ * after it. Long enough for any release to arrive, short enough that a press
+ * whose release never does is not felt as a stuck keyboard.
+ */
+const FLUSH_AFTER_MS = 400;
 
 /**
  * One terminal session: an xterm.js instance bound to one PTY.
@@ -52,6 +60,9 @@ export class TerminalInstance {
   private readonly titleHandlers = new Set<(title: string) => void>();
   /** Whether this shell names its tab as well as its window; see `watchTitle`. */
   private sawTabTitle = false;
+  /** Keys on their way to the PTY; see `keyQueue.ts`. */
+  private readonly keys = new KeyQueue((data) => this.term.input(data));
+  private flushTimer: number | undefined;
 
   private constructor(readonly session: pty.PtySessionInfo, settings: Settings) {
     this.element = document.createElement("div");
@@ -183,6 +194,10 @@ export class TerminalInstance {
     // with it whatever character it was in the middle of composing.
     const focused = document.activeElement === this.term.textarea;
     if (active === focused) return;
+    // A press whose release lands in another pane would otherwise hold up
+    // everything typed here after it.
+    this.keys.flush(true);
+    this.armFlush();
     if (active) this.term.focus();
     else this.term.blur();
   }
@@ -275,6 +290,14 @@ export class TerminalInstance {
     // a burst of typing lost characters, and why it lost more of them under a
     // program that keeps the terminal busy.
     if (!event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (event.keyCode === 229 && event.type === "keydown") {
+        this.keys.press();
+        this.armFlush();
+      }
+      if (event.type === "keyup" && event.keyCode === 0) {
+        this.keys.release(event.key);
+        this.armFlush();
+      }
       if (event.isComposing || event.keyCode === 229 || event.keyCode === 0) {
         return false;
       }
@@ -288,8 +311,19 @@ export class TerminalInstance {
     // Without this the character would also reach the hidden textarea and be
     // sent a second time.
     event.preventDefault();
-    this.term.input(data);
+    this.keys.type(data);
     return false;
+  }
+
+  /**
+   * A press whose release never comes must not hold the keys behind it for
+   * ever, so the queue is given a deadline whenever one is outstanding.
+   */
+  private armFlush(): void {
+    window.clearTimeout(this.flushTimer);
+    this.flushTimer = undefined;
+    if (!this.keys.waiting) return;
+    this.flushTimer = window.setTimeout(() => this.keys.flush(true), FLUSH_AFTER_MS);
   }
 
   /**
@@ -323,26 +357,36 @@ export class TerminalInstance {
       );
     };
 
-    for (const type of [
-      "compositionstart",
-      "compositionupdate",
-      "compositionend",
-    ]) {
-      capture(type, (event) => event.stopImmediatePropagation());
-    }
+    // A composition that announces itself is composing for real; one that only
+    // ends was never a composition at all, just a letter taking that road.
+    capture("compositionstart", (event) => {
+      this.keys.setComposing(true);
+      event.stopImmediatePropagation();
+    });
+    capture("compositionupdate", (event) => event.stopImmediatePropagation());
+    capture("compositionend", (event) => {
+      this.keys.setComposing(false);
+      event.stopImmediatePropagation();
+    });
 
     capture("input", (event) => {
       const { data, inputType } = event as InputEvent;
       // Pre-edit text is not input yet -- it becomes input when the input
       // method commits it -- and a paste is xterm's own event, handled there.
-      if (inputType === "insertCompositionText") return;
+      if (inputType === "insertCompositionText") {
+        this.keys.setComposing(true);
+        return;
+      }
       if (inputType === "insertFromPaste") return;
 
       event.stopImmediatePropagation();
       // Nothing reads the textarea any more, and left alone it grows for as
       // long as the session lives.
       textarea.value = "";
-      if (data) this.term.input(data);
+      if (!data) return;
+      // The letter for the press that is still to be released.
+      this.keys.composed(data);
+      this.armFlush();
     });
   }
 
@@ -516,6 +560,7 @@ export class TerminalInstance {
     if (this.disposed) return;
     this.disposed = true;
     this.detach();
+    window.clearTimeout(this.flushTimer);
     for (const dispose of this.disposers) dispose();
     this.term.dispose();
     await pty.close(this.session.id);
