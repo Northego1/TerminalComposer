@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { useFocusStore } from "./focusStore";
 import { DEFAULT_SETTINGS, useSettingsStore } from "./settingsStore";
+import { paneToward } from "../terminal/paneDrag";
 import { activeInstance, activeSession, useTabsStore } from "./tabsStore";
 
 interface GlobalHotkeys {
@@ -55,6 +56,21 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
     if (code === "ArrowDown") return focus("terminal");
   }
 
+  // Walk the split the way it looks on screen: the shell to the left is the
+  // one to the left, however deep in the tree it sits. Alt rather than
+  // Ctrl+Shift, which is already the composer's, and plain arrows belong to
+  // whatever is running in the terminal.
+  if (altKey && !ctrlKey && !shiftKey) {
+    const toward = ARROWS[code];
+    if (toward) {
+      const pane = paneToward(toward);
+      if (pane) tabs.focusPane(pane);
+      // Handled either way: an arrow that runs off the edge of the tab must
+      // not fall through to the shell.
+      return true;
+    }
+  }
+
   // Jump to a tab by position.
   if (altKey && !ctrlKey && !shiftKey && /^Digit[1-9]$/.test(code)) {
     const tab = tabs.tabs[Number(code.slice(5)) - 1];
@@ -73,10 +89,16 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
       case "KeyP":
         useFocusStore.getState().togglePinned();
         return true;
-      // Another shell beside this one, and closing the one the keys are in --
-      // which is the tab itself once it is down to a single shell.
+      // Another shell beside this one, or under it, and closing the one the
+      // keys are in -- which is the tab itself once it is down to a single
+      // shell.
       case "KeyD":
-        void tabs.split();
+        void tabs.split("row");
+        return true;
+      // O, not E: GNOME's input method takes Ctrl+Shift+E for emoji, and
+      // Terminator splits the same way on the same key.
+      case "KeyO":
+        void tabs.split("column");
         return true;
       case "KeyW": {
         const session = activeSession();
@@ -126,6 +148,14 @@ function route(event: KeyboardEvent, openSearch: () => void): boolean {
 
   return false;
 }
+
+/** The arrow keys, as the directions `paneToward` looks in. */
+const ARROWS: Record<string, "left" | "right" | "up" | "down" | undefined> = {
+  ArrowLeft: "left",
+  ArrowRight: "right",
+  ArrowUp: "up",
+  ArrowDown: "down",
+};
 
 export const ZOOM = { min: 50, max: 200, step: 10 };
 

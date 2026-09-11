@@ -301,10 +301,18 @@ export function Composer({
     });
   }, [sessionId]);
 
+  // Only when the keyboard actually changes hands. A redundant focus() is not
+  // free on WebKitGTK: it recreates the platform input method's context, which
+  // resets the keyboard layout and cancels whatever was being composed. The
+  // terminal side guards the same way -- see `TerminalInstance.setActive`.
   useEffect(() => {
     if (!editor) return;
-    if (pane === "composer") editor.commands.focus();
-    else editor.commands.blur();
+    const focused = editor.view.hasFocus();
+    if (pane === "composer") {
+      if (!focused) editor.commands.focus();
+    } else if (focused) {
+      editor.commands.blur();
+    }
   }, [pane, editor]);
 
   // The placeholder is a decoration, so a language change has to ask for one.

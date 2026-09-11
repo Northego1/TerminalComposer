@@ -11,6 +11,8 @@ import {
   useTabsStore,
 } from "./app/tabsStore";
 import type { ShellState } from "./terminal/TerminalInstance";
+import { ResizeHandles } from "./app/ResizeHandles";
+import { SplitControls } from "./app/SplitControls";
 import { applySettingsToDocument, useSettingsStore } from "./app/settingsStore";
 import { useGlobalHotkeys } from "./app/useGlobalHotkeys";
 import { WindowControls } from "./app/WindowControls";
@@ -25,7 +27,7 @@ import { isEmptyMessage, type Message } from "./message/types";
 import { SettingsView } from "./settings/SettingsView";
 import { Sidebar } from "./sidebar/Sidebar";
 import { TerminalSearch } from "./terminal/TerminalSearch";
-import { TerminalView } from "./terminal/TerminalView";
+import { SplitPanes } from "./terminal/SplitPanes";
 import { FileViewer } from "./viewer/FileViewer";
 import { ViewerTabs } from "./viewer/ViewerTabs";
 
@@ -225,6 +227,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <ResizeHandles />
       <Sidebar />
 
       <div className="app__main">
@@ -242,6 +245,10 @@ export default function App() {
               </span>
             </>
           )}
+          {/* Carries the drag region as well: it covers the header's empty
+              middle, which is what the window is dragged by. */}
+          <span className="app__spacer" aria-hidden="true" data-tauri-drag-region />
+
           {/* Says why the keyboard is where it is, rather than leaving it to be
               worked out from the composer collapsing. */}
           {onTerminal && shellState !== "unknown" && (
@@ -254,6 +261,7 @@ export default function App() {
             </span>
           )}
 
+          {onTerminal && <SplitControls />}
           <WindowControls />
         </header>
 
@@ -299,26 +307,15 @@ export default function App() {
                 </div>
               );
             }
-              // The tab's shells side by side. Only the focused one blinks and
-              // takes the keys; a click on any of them makes it the focused one.
+              // The tab's shells, split whichever way it was split. Only the
+              // focused one blinks and takes the keys; a click on any of them
+              // makes it the focused one.
               return (
                 <div
                   key={tab.id}
-                  className={`app__pane app__split${isActive ? "" : " app__pane--hidden"}`}
+                  className={`app__pane${isActive ? "" : " app__pane--hidden"}`}
                 >
-                  {tab.panes.map((paneEntry) => {
-                    const instance = getInstance(paneEntry.id);
-                    return (
-                      instance && (
-                        <TerminalView
-                          key={paneEntry.id}
-                          instance={instance}
-                          active={isActive}
-                          focused={tab.panes.length > 1 && paneEntry.id === tab.paneId}
-                        />
-                      )
-                    );
-                  })}
+                  <SplitPanes tab={tab} active={isActive} />
                 </div>
               );
             })}
