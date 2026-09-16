@@ -10,6 +10,10 @@ export const EN = {
   "window.minimize": "Minimise",
   "window.maximize": "Maximise",
   "window.close": "Close window",
+  "split.right": "Another shell to the right (Ctrl+Shift+D)",
+  "split.down": "Another shell below (Ctrl+Shift+O)",
+  "pane.move": "Drag to move this shell",
+  "pane.close": "Close this shell (Ctrl+Shift+W)",
   "app.shell.prompt": "waiting",
   "app.shell.running": "running",
 
@@ -89,6 +93,10 @@ export const RU: Record<StringKey, string> = {
   "window.minimize": "Свернуть",
   "window.maximize": "Развернуть",
   "window.close": "Закрыть окно",
+  "split.right": "Ещё один терминал справа (Ctrl+Shift+D)",
+  "split.down": "Ещё один терминал снизу (Ctrl+Shift+O)",
+  "pane.move": "Перетащить этот терминал",
+  "pane.close": "Закрыть этот терминал (Ctrl+Shift+W)",
   "app.shell.prompt": "ждёт",
   "app.shell.running": "выполняется",
 

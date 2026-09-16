@@ -9,6 +9,7 @@
 import { loadComposerState, type ComposerState } from "../composer/state/drafts";
 import { sharedHistory } from "../composer/state/sharedHistory";
 import type { History } from "../composer/state/history";
+import { toPersisted, type PersistedLayout } from "./layout";
 import { readDocument, writeDocument } from "./persistence";
 import { useTabsStore, type Tab } from "./tabsStore";
 
@@ -21,8 +22,15 @@ export interface PersistedTab {
   renamed?: boolean;
   /** Older files kept one directory per tab; `panes` replaced it. */
   cwd?: string;
-  /** One entry per shell, left to right. */
-  panes?: Array<{ cwd: string }>;
+  /** One entry per shell, in split order. */
+  panes?: Array<{ cwd: string; size?: number }>;
+  /**
+   * How those shells were arranged, as a tree whose leaves point at `panes` by
+   * position -- session ids are handed out afresh on every start.
+   */
+  layout?: PersistedLayout;
+  /** Which way the shells were laid out, in files written before the tree. */
+  direction?: "row" | "column";
   composer?: ComposerState;
 }
 
@@ -54,6 +62,9 @@ function snapshot(): Workspace {
             name: tab.name,
             renamed: tab.renamed,
             panes: tab.panes.map((pane) => ({ cwd: pane.cwd })),
+            layout: toPersisted(tab.layout, (id) =>
+              tab.panes.findIndex((pane) => pane.id === id),
+            ),
             composer: loadComposerState(tab.id),
           }
         : { kind: tab.kind, name: tab.name },
